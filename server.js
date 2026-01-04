@@ -20,6 +20,93 @@ if (!fs.existsSync(dataDir)) {
 
 const accountsFile = path.join(dataDir, 'accounts.csv');
 
+// Character classes with base stats
+const CHARACTER_CLASSES = {
+  warrior: {
+    name: 'Warrior',
+    description: 'High strength and health, melee fighter',
+    baseStats: {
+      hp: 120,
+      maxHp: 120,
+      mp: 30,
+      maxMp: 30,
+      str: 15,
+      dex: 8,
+      int: 5,
+      vit: 12,
+      def: 10
+    }
+  },
+  mage: {
+    name: 'Mage',
+    description: 'High intelligence and magic, spellcaster',
+    baseStats: {
+      hp: 60,
+      maxHp: 60,
+      mp: 100,
+      maxMp: 100,
+      str: 5,
+      dex: 8,
+      int: 15,
+      vit: 6,
+      def: 5
+    }
+  },
+  rogue: {
+    name: 'Rogue',
+    description: 'High dexterity and speed, agile fighter',
+    baseStats: {
+      hp: 80,
+      maxHp: 80,
+      mp: 50,
+      maxMp: 50,
+      str: 8,
+      dex: 15,
+      int: 8,
+      vit: 8,
+      def: 7
+    }
+  },
+  paladin: {
+    name: 'Paladin',
+    description: 'Balanced fighter with healing abilities',
+    baseStats: {
+      hp: 100,
+      maxHp: 100,
+      mp: 70,
+      maxMp: 70,
+      str: 10,
+      dex: 7,
+      int: 10,
+      vit: 10,
+      def: 9
+    }
+  }
+};
+
+// Calculate stats based on level
+function calculateStatsForLevel(baseStats, level) {
+  const stats = { ...baseStats };
+  const levelMultiplier = 1 + (level - 1) * 0.1; // 10% increase per level
+  
+  stats.maxHp = Math.floor(baseStats.maxHp * levelMultiplier);
+  stats.hp = stats.maxHp; // Full HP on level up
+  stats.maxMp = Math.floor(baseStats.maxMp * levelMultiplier);
+  stats.mp = stats.maxMp;
+  stats.str = Math.floor(baseStats.str * levelMultiplier);
+  stats.dex = Math.floor(baseStats.dex * levelMultiplier);
+  stats.int = Math.floor(baseStats.int * levelMultiplier);
+  stats.vit = Math.floor(baseStats.vit * levelMultiplier);
+  stats.def = Math.floor(baseStats.def * levelMultiplier);
+  
+  return stats;
+}
+
+// Calculate XP needed for next level
+function getXPForLevel(level) {
+  return Math.floor(100 * Math.pow(1.5, level - 1));
+}
+
 // Initialize accounts.csv if it doesn't exist
 if (!fs.existsSync(accountsFile)) {
   const csvWriter = createCsvWriter({
@@ -28,7 +115,19 @@ if (!fs.existsSync(accountsFile)) {
       { id: 'username', title: 'username' },
       { id: 'score', title: 'score' },
       { id: 'respawnX', title: 'respawnX' },
-      { id: 'respawnY', title: 'respawnY' }
+      { id: 'respawnY', title: 'respawnY' },
+      { id: 'characterClass', title: 'characterClass' },
+      { id: 'level', title: 'level' },
+      { id: 'xp', title: 'xp' },
+      { id: 'hp', title: 'hp' },
+      { id: 'maxHp', title: 'maxHp' },
+      { id: 'mp', title: 'mp' },
+      { id: 'maxMp', title: 'maxMp' },
+      { id: 'str', title: 'str' },
+      { id: 'dex', title: 'dex' },
+      { id: 'int', title: 'int' },
+      { id: 'vit', title: 'vit' },
+      { id: 'def', title: 'def' }
     ]
   });
   csvWriter.writeRecords([]);
@@ -41,11 +140,28 @@ function readAccounts() {
     fs.createReadStream(accountsFile)
       .pipe(csv())
       .on('data', (row) => {
+        const level = parseInt(row.level) || 1;
+        const characterClass = row.characterClass || 'warrior';
+        const baseStats = CHARACTER_CLASSES[characterClass]?.baseStats || CHARACTER_CLASSES.warrior.baseStats;
+        const stats = calculateStatsForLevel(baseStats, level);
+        
         accounts.push({
           username: row.username,
           score: parseInt(row.score) || 0,
           respawnX: parseFloat(row.respawnX) || SPAWN_X,
-          respawnY: parseFloat(row.respawnY) || SPAWN_Y
+          respawnY: parseFloat(row.respawnY) || SPAWN_Y,
+          characterClass: characterClass,
+          level: level,
+          xp: parseInt(row.xp) || 0,
+          hp: parseInt(row.hp) || stats.maxHp,
+          maxHp: parseInt(row.maxHp) || stats.maxHp,
+          mp: parseInt(row.mp) || stats.maxMp,
+          maxMp: parseInt(row.maxMp) || stats.maxMp,
+          str: parseInt(row.str) || stats.str,
+          dex: parseInt(row.dex) || stats.dex,
+          int: parseInt(row.int) || stats.int,
+          vit: parseInt(row.vit) || stats.vit,
+          def: parseInt(row.def) || stats.def
         });
       })
       .on('end', () => {
@@ -64,7 +180,19 @@ function writeAccounts(accounts) {
         { id: 'username', title: 'username' },
         { id: 'score', title: 'score' },
         { id: 'respawnX', title: 'respawnX' },
-        { id: 'respawnY', title: 'respawnY' }
+        { id: 'respawnY', title: 'respawnY' },
+        { id: 'characterClass', title: 'characterClass' },
+        { id: 'level', title: 'level' },
+        { id: 'xp', title: 'xp' },
+        { id: 'hp', title: 'hp' },
+        { id: 'maxHp', title: 'maxHp' },
+        { id: 'mp', title: 'mp' },
+        { id: 'maxMp', title: 'maxMp' },
+        { id: 'str', title: 'str' },
+        { id: 'dex', title: 'dex' },
+        { id: 'int', title: 'int' },
+        { id: 'vit', title: 'vit' },
+        { id: 'def', title: 'def' }
       ]
     });
     csvWriter.writeRecords(accounts)
@@ -91,7 +219,19 @@ app.post('/api/login', async (req, res) => {
         username: account.username, 
         score: account.score,
         respawnX: account.respawnX || SPAWN_X,
-        respawnY: account.respawnY || SPAWN_Y
+        respawnY: account.respawnY || SPAWN_Y,
+        characterClass: account.characterClass,
+        level: account.level,
+        xp: account.xp,
+        hp: account.hp,
+        maxHp: account.maxHp,
+        mp: account.mp,
+        maxMp: account.maxMp,
+        str: account.str,
+        dex: account.dex,
+        int: account.int,
+        vit: account.vit,
+        def: account.def
       });
     } else {
       res.status(404).json({ error: 'User not found' });
@@ -117,12 +257,28 @@ app.post('/api/signup', async (req, res) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
-    // Add new account with default respawn at center
+    // Add new account with default character (warrior, level 1)
+    const defaultClass = 'warrior';
+    const baseStats = CHARACTER_CLASSES[defaultClass].baseStats;
+    const stats = calculateStatsForLevel(baseStats, 1);
+    
     accounts.push({ 
       username, 
       score: 0,
       respawnX: SPAWN_X,
-      respawnY: SPAWN_Y
+      respawnY: SPAWN_Y,
+      characterClass: defaultClass,
+      level: 1,
+      xp: 0,
+      hp: stats.maxHp,
+      maxHp: stats.maxHp,
+      mp: stats.maxMp,
+      maxMp: stats.maxMp,
+      str: stats.str,
+      dex: stats.dex,
+      int: stats.int,
+      vit: stats.vit,
+      def: stats.def
     });
     await writeAccounts(accounts);
     
@@ -131,7 +287,11 @@ app.post('/api/signup', async (req, res) => {
       username, 
       score: 0,
       respawnX: SPAWN_X,
-      respawnY: SPAWN_Y
+      respawnY: SPAWN_Y,
+      characterClass: defaultClass,
+      level: 1,
+      xp: 0,
+      ...stats
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -187,6 +347,43 @@ app.post('/api/update-respawn', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// Update character endpoint
+app.post('/api/update-character', async (req, res) => {
+  const { username, characterData } = req.body;
+  
+  if (!username || !characterData) {
+    return res.status(400).json({ error: 'Username and character data are required' });
+  }
+
+  try {
+    const accounts = await readAccounts();
+    const account = accounts.find(acc => acc.username === username);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update character stats
+    Object.assign(account, characterData);
+    await writeAccounts(accounts);
+    
+    res.json({ success: true, character: account });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get character classes endpoint
+app.get('/api/character-classes', (req, res) => {
+  const classes = Object.keys(CHARACTER_CLASSES).map(key => ({
+    id: key,
+    name: CHARACTER_CLASSES[key].name,
+    description: CHARACTER_CLASSES[key].description,
+    baseStats: CHARACTER_CLASSES[key].baseStats
+  }));
+  res.json({ classes });
 });
 
 // WebSocket server for real-time game updates
@@ -404,11 +601,37 @@ wss.on('connection', (ws) => {
         const spawnX = data.respawnX || SPAWN_X;
         const spawnY = data.respawnY || SPAWN_Y;
         
+        // Get character data from account
+        let characterData = {};
+        try {
+          const accounts = await readAccounts();
+          const account = accounts.find(acc => acc.username === data.username);
+          if (account) {
+            characterData = {
+              characterClass: account.characterClass,
+              level: account.level,
+              xp: account.xp,
+              hp: account.hp,
+              maxHp: account.maxHp,
+              mp: account.mp,
+              maxMp: account.maxMp,
+              str: account.str,
+              dex: account.dex,
+              int: account.int,
+              vit: account.vit,
+              def: account.def
+            };
+          }
+        } catch (error) {
+          console.error('Error loading character data:', error);
+        }
+        
         players.set(ws, {
           username: data.username,
           x: spawnX,
           y: spawnY,
-          score: data.score || 0
+          score: data.score || 0,
+          ...characterData
         });
         
         // Send current game state with world info
@@ -476,13 +699,71 @@ wss.on('connection', (ws) => {
               score: player.score
             });
             
-            // Update score on server
+            // Update score and XP on server
             try {
               const accounts = await readAccounts();
               const account = accounts.find(acc => acc.username === player.username);
               if (account) {
                 account.score = player.score;
+                
+                // Give XP for orb collection
+                const xpGain = 15;
+                account.xp += xpGain;
+                
+                // Check for level up
+                let leveledUp = false;
+                while (account.xp >= getXPForLevel(account.level)) {
+                  account.xp -= getXPForLevel(account.level);
+                  account.level += 1;
+                  leveledUp = true;
+                  
+                  // Recalculate stats for new level
+                  const baseStats = CHARACTER_CLASSES[account.characterClass]?.baseStats || CHARACTER_CLASSES.warrior.baseStats;
+                  const newStats = calculateStatsForLevel(baseStats, account.level);
+                  
+                  // Update stats but preserve current HP/MP percentages
+                  const hpPercent = account.hp / account.maxHp;
+                  const mpPercent = account.mp / account.maxMp;
+                  
+                  account.maxHp = newStats.maxHp;
+                  account.hp = Math.floor(account.maxHp * hpPercent);
+                  account.maxMp = newStats.maxMp;
+                  account.mp = Math.floor(account.maxMp * mpPercent);
+                  account.str = newStats.str;
+                  account.dex = newStats.dex;
+                  account.int = newStats.int;
+                  account.vit = newStats.vit;
+                  account.def = newStats.def;
+                }
+                
                 await writeAccounts(accounts);
+                
+                // Notify player of level up
+                if (leveledUp) {
+                  ws.send(JSON.stringify({
+                    type: 'levelUp',
+                    level: account.level,
+                    stats: {
+                      hp: account.hp,
+                      maxHp: account.maxHp,
+                      mp: account.mp,
+                      maxMp: account.maxMp,
+                      str: account.str,
+                      dex: account.dex,
+                      int: account.int,
+                      vit: account.vit,
+                      def: account.def
+                    }
+                  }));
+                }
+                
+                // Send updated character data
+                ws.send(JSON.stringify({
+                  type: 'characterUpdate',
+                  xp: account.xp,
+                  xpForNextLevel: getXPForLevel(account.level),
+                  level: account.level
+                }));
               }
             } catch (error) {
               console.error('Error updating score:', error);

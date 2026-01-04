@@ -4,12 +4,29 @@ let player = {
   x: 10000,
   y: 10000,
   score: 0,
-  size: 20
+  size: 20,
+  // Character stats
+  characterClass: 'warrior',
+  level: 1,
+  xp: 0,
+  xpForNextLevel: 100,
+  hp: 100,
+  maxHp: 100,
+  mp: 50,
+  maxMp: 50,
+  str: 10,
+  dex: 10,
+  int: 10,
+  vit: 10,
+  def: 10
 };
 let otherPlayers = [];
 let orbs = [];
 let keys = {};
 let loggedIn = false;
+let showCharacterSheet = false;
+let levelUpMessage = '';
+let levelUpTimer = 0;
 
 // World and camera configuration - MMO scale
 let worldWidth = 20000;
@@ -74,6 +91,22 @@ async function login(username) {
       player.score = data.score || 0;
       respawnX = data.respawnX || 10000;
       respawnY = data.respawnY || 10000;
+      
+      // Load character data
+      player.characterClass = data.characterClass || 'warrior';
+      player.level = data.level || 1;
+      player.xp = data.xp || 0;
+      player.hp = data.hp || 100;
+      player.maxHp = data.maxHp || 100;
+      player.mp = data.mp || 50;
+      player.maxMp = data.maxMp || 50;
+      player.str = data.str || 10;
+      player.dex = data.dex || 10;
+      player.int = data.int || 10;
+      player.vit = data.vit || 10;
+      player.def = data.def || 10;
+      player.xpForNextLevel = getXPForLevel(player.level);
+      
       startGame();
     } else {
       showError(data.error || 'Login failed');
@@ -98,6 +131,22 @@ async function signup(username) {
       player.score = data.score || 0;
       respawnX = data.respawnX || 10000;
       respawnY = data.respawnY || 10000;
+      
+      // Load character data
+      player.characterClass = data.characterClass || 'warrior';
+      player.level = data.level || 1;
+      player.xp = data.xp || 0;
+      player.hp = data.hp || 100;
+      player.maxHp = data.maxHp || 100;
+      player.mp = data.mp || 50;
+      player.maxMp = data.maxMp || 50;
+      player.str = data.str || 10;
+      player.dex = data.dex || 10;
+      player.int = data.int || 10;
+      player.vit = data.vit || 10;
+      player.def = data.def || 10;
+      player.xpForNextLevel = getXPForLevel(player.level);
+      
       startGame();
     } else {
       showError(data.error || 'Signup failed');
@@ -118,8 +167,7 @@ function startGame() {
   loggedIn = true;
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('scoreDisplay').style.display = 'block';
-  document.getElementById('usernameDisplay').textContent = player.username;
-  document.getElementById('scoreValue').textContent = player.score;
+  updateCharacterDisplay();
   
   // Connect WebSocket
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -199,10 +247,35 @@ function startGame() {
     if (data.type === 'orbCollected') {
       if (data.username === player.username) {
         player.score = data.score;
-        document.getElementById('scoreValue').textContent = player.score;
+        updateCharacterDisplay();
         updateScoreOnServer();
       }
       orbs = orbs.filter(o => o.id !== data.orbId);
+    }
+    
+    if (data.type === 'characterUpdate') {
+      player.xp = data.xp;
+      player.xpForNextLevel = data.xpForNextLevel;
+      player.level = data.level;
+      updateCharacterDisplay();
+    }
+    
+    if (data.type === 'levelUp') {
+      player.level = data.level;
+      player.hp = data.stats.hp;
+      player.maxHp = data.stats.maxHp;
+      player.mp = data.stats.mp;
+      player.maxMp = data.stats.maxMp;
+      player.str = data.stats.str;
+      player.dex = data.stats.dex;
+      player.int = data.stats.int;
+      player.vit = data.stats.vit;
+      player.def = data.stats.def;
+      player.xpForNextLevel = getXPForLevel(player.level);
+      
+      levelUpMessage = `Level Up! You are now Level ${player.level}!`;
+      levelUpTimer = 300; // 5 seconds at 60fps
+      updateCharacterDisplay();
     }
     
     if (data.type === 'orbRespawn') {
@@ -221,6 +294,11 @@ function startGame() {
           type: 'interactPortal'
         }));
       }
+    }
+    
+    // Toggle character sheet (C key)
+    if (e.key === 'c' || e.key === 'C') {
+      showCharacterSheet = !showCharacterSheet;
     }
   });
   
@@ -242,6 +320,27 @@ async function updateScoreOnServer() {
   } catch (error) {
     console.error('Error updating score:', error);
   }
+}
+
+// Update character display in UI
+function updateCharacterDisplay() {
+  document.getElementById('usernameDisplay').textContent = player.username;
+  document.getElementById('scoreValue').textContent = player.score;
+  document.getElementById('levelDisplay').textContent = player.level;
+  document.getElementById('hpDisplay').textContent = player.hp;
+  document.getElementById('maxHpDisplay').textContent = player.maxHp;
+  document.getElementById('mpDisplay').textContent = player.mp;
+  document.getElementById('maxMpDisplay').textContent = player.maxMp;
+  document.getElementById('xpDisplay').textContent = player.xp;
+  document.getElementById('xpForNextLevelDisplay').textContent = player.xpForNextLevel;
+  
+  // Update HP bar
+  const hpPercent = Math.max(0, Math.min(100, (player.hp / player.maxHp) * 100));
+  document.getElementById('hpBar').style.width = hpPercent + '%';
+  
+  // Update MP bar
+  const mpPercent = Math.max(0, Math.min(100, (player.mp / player.maxMp) * 100));
+  document.getElementById('mpBar').style.width = mpPercent + '%';
 }
 
 // p5.js setup
@@ -268,6 +367,11 @@ function worldToScreen(worldX, worldY) {
     x: worldX - camera.x,
     y: worldY - camera.y
   };
+}
+
+// Calculate XP needed for level
+function getXPForLevel(level) {
+  return Math.floor(100 * Math.pow(1.5, level - 1));
 }
 
 // Check which zone the player is in
@@ -421,8 +525,16 @@ function draw() {
   // Draw respawn message
   drawRespawnMessage();
   
+  // Draw level up message
+  drawLevelUpMessage();
+  
   // Draw portal interaction hint
   drawPortalHint();
+  
+  // Draw character sheet
+  if (showCharacterSheet) {
+    drawCharacterSheet();
+  }
   
   // Draw minimap
   drawMinimap();
@@ -431,8 +543,8 @@ function draw() {
   fill(255, 200);
   textAlign(LEFT);
   textSize(12);
-  text('WASD to move', 10, canvasHeight - 30);
-  text('Collect orbs to earn points!', 10, canvasHeight - 15);
+  text('WASD to move | C - Character Sheet', 10, canvasHeight - 30);
+  text('Collect orbs to earn points and XP!', 10, canvasHeight - 15);
 }
 
 // Draw portals
@@ -504,6 +616,133 @@ function drawRespawnMessage() {
     
     textStyle(NORMAL);
   }
+}
+
+// Draw level up message
+function drawLevelUpMessage() {
+  if (levelUpTimer > 0 && levelUpMessage) {
+    levelUpTimer--;
+    
+    // Background
+    fill(0, 0, 0, 220);
+    noStroke();
+    textSize(28);
+    textStyle(BOLD);
+    const msgWidth = textWidth(levelUpMessage) + 60;
+    const rectX = (canvasWidth - msgWidth) / 2;
+    rect(rectX, canvasHeight / 2 - 50, msgWidth, 70);
+    
+    // Message with glow effect
+    fill(255, 215, 0);
+    textAlign(CENTER);
+    text(levelUpMessage, canvasWidth / 2, canvasHeight / 2);
+    
+    textStyle(NORMAL);
+  }
+}
+
+// Draw character sheet
+function drawCharacterSheet() {
+  const sheetWidth = 400;
+  const sheetHeight = 500;
+  const sheetX = (canvasWidth - sheetWidth) / 2;
+  const sheetY = (canvasHeight - sheetHeight) / 2;
+  
+  // Background
+  fill(30, 30, 40, 240);
+  stroke(100, 150, 200);
+  strokeWeight(3);
+  rect(sheetX, sheetY, sheetWidth, sheetHeight);
+  
+  // Title
+  fill(255, 255, 255);
+  textAlign(CENTER);
+  textSize(24);
+  textStyle(BOLD);
+  text('Character Sheet', sheetX + sheetWidth / 2, sheetY + 35);
+  textStyle(NORMAL);
+  
+  let yOffset = sheetY + 70;
+  const lineHeight = 25;
+  
+  // Character info
+  textAlign(LEFT);
+  textSize(16);
+  fill(200, 200, 255);
+  text(`Name: ${player.username}`, sheetX + 20, yOffset);
+  yOffset += lineHeight;
+  
+  const classNames = {
+    warrior: 'Warrior',
+    mage: 'Mage',
+    rogue: 'Rogue',
+    paladin: 'Paladin'
+  };
+  
+  fill(150, 200, 255);
+  text(`Class: ${classNames[player.characterClass] || player.characterClass}`, sheetX + 20, yOffset);
+  yOffset += lineHeight;
+  
+  fill(255, 200, 100);
+  text(`Level: ${player.level}`, sheetX + 20, yOffset);
+  yOffset += lineHeight;
+  
+  // XP Bar
+  const xpBarWidth = sheetWidth - 40;
+  const xpBarHeight = 20;
+  const xpPercent = player.xp / player.xpForNextLevel;
+  
+  fill(50, 50, 50);
+  rect(sheetX + 20, yOffset, xpBarWidth, xpBarHeight);
+  
+  fill(100, 200, 255);
+  rect(sheetX + 20, yOffset, xpBarWidth * xpPercent, xpBarHeight);
+  
+  fill(255, 255, 255);
+  textAlign(CENTER);
+  textSize(12);
+  text(`${player.xp} / ${player.xpForNextLevel} XP`, sheetX + sheetWidth / 2, yOffset + 15);
+  yOffset += lineHeight + 10;
+  
+  // Stats section
+  textAlign(LEFT);
+  textSize(18);
+  fill(255, 255, 255);
+  textStyle(BOLD);
+  text('Stats', sheetX + 20, yOffset);
+  textStyle(NORMAL);
+  yOffset += lineHeight;
+  
+  textSize(14);
+  
+  // HP
+  fill(255, 100, 100);
+  text(`HP: ${player.hp} / ${player.maxHp}`, sheetX + 20, yOffset);
+  yOffset += lineHeight;
+  
+  // MP
+  fill(100, 150, 255);
+  text(`MP: ${player.mp} / ${player.maxMp}`, sheetX + 20, yOffset);
+  yOffset += lineHeight + 5;
+  
+  // Attributes
+  fill(255, 200, 100);
+  text(`STR: ${player.str}`, sheetX + 20, yOffset);
+  text(`DEX: ${player.dex}`, sheetX + 220, yOffset);
+  yOffset += lineHeight;
+  
+  text(`INT: ${player.int}`, sheetX + 20, yOffset);
+  text(`VIT: ${player.vit}`, sheetX + 220, yOffset);
+  yOffset += lineHeight;
+  
+  text(`DEF: ${player.def}`, sheetX + 20, yOffset);
+  yOffset += lineHeight + 10;
+  
+  // Close hint
+  textAlign(CENTER);
+  fill(150, 150, 150);
+  textSize(12);
+  text('Press C to close', sheetX + sheetWidth / 2, sheetY + sheetHeight - 20);
 }
 
 // Draw zone name when entering a new zone
