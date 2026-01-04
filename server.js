@@ -127,7 +127,9 @@ if (!fs.existsSync(accountsFile)) {
       { id: 'dex', title: 'dex' },
       { id: 'int', title: 'int' },
       { id: 'vit', title: 'vit' },
-      { id: 'def', title: 'def' }
+      { id: 'def', title: 'def' },
+      { id: 'inventory', title: 'inventory' },
+      { id: 'equipment', title: 'equipment' }
     ]
   });
   csvWriter.writeRecords([]);
@@ -145,6 +147,20 @@ function readAccounts() {
         const baseStats = CHARACTER_CLASSES[characterClass]?.baseStats || CHARACTER_CLASSES.warrior.baseStats;
         const stats = calculateStatsForLevel(baseStats, level);
         
+        // Parse inventory and equipment from JSON strings
+        let inventory = [];
+        let equipment = {};
+        try {
+          inventory = row.inventory ? JSON.parse(row.inventory) : [];
+        } catch (e) {
+          inventory = [];
+        }
+        try {
+          equipment = row.equipment ? JSON.parse(row.equipment) : {};
+        } catch (e) {
+          equipment = {};
+        }
+        
         accounts.push({
           username: row.username,
           score: parseInt(row.score) || 0,
@@ -161,7 +177,9 @@ function readAccounts() {
           dex: parseInt(row.dex) || stats.dex,
           int: parseInt(row.int) || stats.int,
           vit: parseInt(row.vit) || stats.vit,
-          def: parseInt(row.def) || stats.def
+          def: parseInt(row.def) || stats.def,
+          inventory: inventory,
+          equipment: equipment
         });
       })
       .on('end', () => {
@@ -192,10 +210,20 @@ function writeAccounts(accounts) {
         { id: 'dex', title: 'dex' },
         { id: 'int', title: 'int' },
         { id: 'vit', title: 'vit' },
-        { id: 'def', title: 'def' }
+        { id: 'def', title: 'def' },
+        { id: 'inventory', title: 'inventory' },
+        { id: 'equipment', title: 'equipment' }
       ]
     });
-    csvWriter.writeRecords(accounts)
+    
+    // Convert inventory and equipment to JSON strings for CSV
+    const accountsForCsv = accounts.map(acc => ({
+      ...acc,
+      inventory: JSON.stringify(acc.inventory || []),
+      equipment: JSON.stringify(acc.equipment || {})
+    }));
+    
+    csvWriter.writeRecords(accountsForCsv)
       .then(resolve)
       .catch(reject);
   });
@@ -214,6 +242,20 @@ app.post('/api/login', async (req, res) => {
     const account = accounts.find(acc => acc.username === username);
     
     if (account) {
+      // Calculate effective stats with equipment bonuses
+      const equipmentBonuses = calculateEquipmentStats(account.equipment || {});
+      const effectiveStats = {
+        hp: account.hp,
+        maxHp: account.maxHp + Math.floor(equipmentBonuses.maxHp || 0),
+        mp: account.mp,
+        maxMp: account.maxMp + Math.floor(equipmentBonuses.maxMp || 0),
+        str: account.str + Math.floor(equipmentBonuses.str || 0),
+        dex: account.dex + Math.floor(equipmentBonuses.dex || 0),
+        int: account.int + Math.floor(equipmentBonuses.int || 0),
+        vit: account.vit + Math.floor(equipmentBonuses.vit || 0),
+        def: account.def + Math.floor(equipmentBonuses.def || 0)
+      };
+      
       res.json({ 
         success: true, 
         username: account.username, 
@@ -223,15 +265,17 @@ app.post('/api/login', async (req, res) => {
         characterClass: account.characterClass,
         level: account.level,
         xp: account.xp,
-        hp: account.hp,
-        maxHp: account.maxHp,
-        mp: account.mp,
-        maxMp: account.maxMp,
-        str: account.str,
-        dex: account.dex,
-        int: account.int,
-        vit: account.vit,
-        def: account.def
+        hp: effectiveStats.hp,
+        maxHp: effectiveStats.maxHp,
+        mp: effectiveStats.mp,
+        maxMp: effectiveStats.maxMp,
+        str: effectiveStats.str,
+        dex: effectiveStats.dex,
+        int: effectiveStats.int,
+        vit: effectiveStats.vit,
+        def: effectiveStats.def,
+        inventory: account.inventory || [],
+        equipment: account.equipment || {}
       });
     } else {
       res.status(404).json({ error: 'User not found' });
@@ -380,6 +424,243 @@ app.get('/api/character-classes', (req, res) => {
   res.json({ classes });
 });
 
+// Get all items endpoint (for client to load item database)
+app.get('/api/items', (req, res) => {
+  res.json({ items: getAllItems() });
+});
+
+// Get inventory endpoint
+app.get('/api/inventory/:username', async (req, res) => {
+  try {
+    const accounts = await readAccounts();
+    const account = accounts.find(acc => acc.username === req.params.username);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      inventory: account.inventory || [],
+      equipment: account.equipment || {}
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Add item to inventory endpoint
+app.post('/api/inventory/add', async (req, res) => {
+  const { username, itemId, itemType } = req.body;
+  
+  if (!username || !itemId || !itemType) {
+    return res.status(400).json({ error: 'Username, itemId, and itemType are required' });
+  }
+  
+  try {
+    const accounts = await readAccounts();
+    const account = accounts.find(acc => acc.username === username);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Get item template
+    const itemTemplate = getItemById(itemId, itemType);
+    if (!itemTemplate) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    
+    // Generate item instance
+    const itemInstance = generateItemInstance(itemTemplate, account.level);
+    
+    // Add to inventory
+    if (!account.inventory) {
+      account.inventory = [];
+    }
+    account.inventory.push(itemInstance);
+    
+    await writeAccounts(accounts);
+    
+    res.json({ success: true, item: itemInstance, inventory: account.inventory });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Equip item endpoint
+app.post('/api/inventory/equip', async (req, res) => {
+  const { username, itemInstanceId, slot } = req.body;
+  
+  if (!username || !itemInstanceId || !slot) {
+    return res.status(400).json({ error: 'Username, itemInstanceId, and slot are required' });
+  }
+  
+  try {
+    const accounts = await readAccounts();
+    const account = accounts.find(acc => acc.username === username);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!account.inventory) {
+      account.inventory = [];
+    }
+    if (!account.equipment) {
+      account.equipment = {};
+    }
+    
+    // Find item in inventory
+    const itemIndex = account.inventory.findIndex(item => item.instanceId === itemInstanceId);
+    if (itemIndex === -1) {
+      return res.status(404).json({ error: 'Item not found in inventory' });
+    }
+    
+    const item = account.inventory[itemIndex];
+    
+    // Validate slot
+    const validSlots = {
+      weapon: ['weapon'],
+      armor: ['helmet', 'chest', 'legs', 'boots'],
+      accessory: ['ring1', 'ring2', 'necklace']
+    };
+    
+    let validSlot = false;
+    if (item.type === 'weapon' && slot === 'weapon') validSlot = true;
+    if (item.type === 'armor' && item.slot === slot) validSlot = true;
+    if (item.type === 'accessory' && (slot === 'ring1' || slot === 'ring2' || slot === 'necklace')) {
+      if (item.slot === 'ring' && (slot === 'ring1' || slot === 'ring2')) validSlot = true;
+      if (item.slot === 'necklace' && slot === 'necklace') validSlot = true;
+    }
+    
+    if (!validSlot) {
+      return res.status(400).json({ error: 'Invalid slot for this item type' });
+    }
+    
+    // If slot is already occupied, unequip first
+    if (account.equipment[slot]) {
+      account.inventory.push(account.equipment[slot]);
+    }
+    
+    // Equip item
+    account.equipment[slot] = item;
+    account.inventory.splice(itemIndex, 1);
+    
+    await writeAccounts(accounts);
+    
+    res.json({ success: true, equipment: account.equipment, inventory: account.inventory });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Unequip item endpoint
+app.post('/api/inventory/unequip', async (req, res) => {
+  const { username, slot } = req.body;
+  
+  if (!username || !slot) {
+    return res.status(400).json({ error: 'Username and slot are required' });
+  }
+  
+  try {
+    const accounts = await readAccounts();
+    const account = accounts.find(acc => acc.username === username);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!account.equipment || !account.equipment[slot]) {
+      return res.status(404).json({ error: 'No item equipped in that slot' });
+    }
+    
+    if (!account.inventory) {
+      account.inventory = [];
+    }
+    
+    // Move item from equipment to inventory
+    account.inventory.push(account.equipment[slot]);
+    delete account.equipment[slot];
+    
+    await writeAccounts(accounts);
+    
+    res.json({ success: true, equipment: account.equipment, inventory: account.inventory });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Use consumable endpoint
+app.post('/api/inventory/use', async (req, res) => {
+  const { username, itemInstanceId } = req.body;
+  
+  if (!username || !itemInstanceId) {
+    return res.status(400).json({ error: 'Username and itemInstanceId are required' });
+  }
+  
+  try {
+    const accounts = await readAccounts();
+    const account = accounts.find(acc => acc.username === username);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!account.inventory) {
+      account.inventory = [];
+    }
+    
+    // Find item in inventory
+    const itemIndex = account.inventory.findIndex(item => item.instanceId === itemInstanceId);
+    if (itemIndex === -1) {
+      return res.status(404).json({ error: 'Item not found in inventory' });
+    }
+    
+    const item = account.inventory[itemIndex];
+    
+    if (item.type !== 'consumable') {
+      return res.status(400).json({ error: 'Item is not a consumable' });
+    }
+    
+    // Apply consumable effects
+    const effects = item.effect || {};
+    let effectsApplied = {};
+    
+    if (effects.hp) {
+      account.hp = Math.min(account.maxHp, account.hp + effects.hp);
+      effectsApplied.hp = effects.hp;
+    }
+    if (effects.mp) {
+      account.mp = Math.min(account.maxMp, account.mp + effects.mp);
+      effectsApplied.mp = effects.mp;
+    }
+    if (effects.xp) {
+      account.xp += effects.xp;
+      effectsApplied.xp = effects.xp;
+    }
+    if (effects.revive && account.hp <= 0) {
+      account.hp = account.maxHp;
+      effectsApplied.revive = true;
+    }
+    
+    // Remove item from inventory (consumables are single-use)
+    account.inventory.splice(itemIndex, 1);
+    
+    await writeAccounts(accounts);
+    
+    res.json({ 
+      success: true, 
+      effects: effectsApplied,
+      inventory: account.inventory,
+      hp: account.hp,
+      mp: account.mp,
+      xp: account.xp
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // WebSocket server for real-time game updates
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
@@ -437,6 +718,188 @@ try {
   console.error('Error loading biomes.json:', error);
   console.log('Using default empty zones array');
   ZONES = [];
+}
+
+// Load item databases from JSON files
+let ITEM_DATABASE = {
+  weapons: [],
+  armor: [],
+  consumables: [],
+  accessories: []
+};
+
+try {
+  const weaponsPath = path.join(dataDir, 'weapons.json');
+  const weaponsData = fs.readFileSync(weaponsPath, 'utf8');
+  const weapons = JSON.parse(weaponsData);
+  ITEM_DATABASE.weapons = weapons.weapons || [];
+  console.log(`Loaded ${ITEM_DATABASE.weapons.length} weapons`);
+} catch (error) {
+  console.error('Error loading weapons.json:', error);
+}
+
+try {
+  const armorPath = path.join(dataDir, 'armor.json');
+  const armorData = fs.readFileSync(armorPath, 'utf8');
+  const armor = JSON.parse(armorData);
+  ITEM_DATABASE.armor = armor.armor || [];
+  console.log(`Loaded ${ITEM_DATABASE.armor.length} armor pieces`);
+} catch (error) {
+  console.error('Error loading armor.json:', error);
+}
+
+try {
+  const consumablesPath = path.join(dataDir, 'consumables.json');
+  const consumablesData = fs.readFileSync(consumablesPath, 'utf8');
+  const consumables = JSON.parse(consumablesData);
+  ITEM_DATABASE.consumables = consumables.consumables || [];
+  console.log(`Loaded ${ITEM_DATABASE.consumables.length} consumables`);
+} catch (error) {
+  console.error('Error loading consumables.json:', error);
+}
+
+try {
+  const accessoriesPath = path.join(dataDir, 'accessories.json');
+  const accessoriesData = fs.readFileSync(accessoriesPath, 'utf8');
+  const accessories = JSON.parse(accessoriesData);
+  ITEM_DATABASE.accessories = accessories.accessories || [];
+  console.log(`Loaded ${ITEM_DATABASE.accessories.length} accessories`);
+} catch (error) {
+  console.error('Error loading accessories.json:', error);
+}
+
+// Item helper functions
+function getItemById(itemId, itemType) {
+  const items = ITEM_DATABASE[itemType] || [];
+  return items.find(item => item.id === itemId);
+}
+
+function getAllItems() {
+  return {
+    weapons: ITEM_DATABASE.weapons,
+    armor: ITEM_DATABASE.armor,
+    consumables: ITEM_DATABASE.consumables,
+    accessories: ITEM_DATABASE.accessories
+  };
+}
+
+// Generate a random item instance from a template
+function generateItemInstance(template, level = null) {
+  const item = JSON.parse(JSON.stringify(template)); // Deep copy
+  
+  // Generate random stats within ranges
+  if (item.baseStats) {
+    item.stats = {};
+    for (const [stat, range] of Object.entries(item.baseStats)) {
+      if (Array.isArray(range) && range.length === 2) {
+        item.stats[stat] = Math.random() * (range[1] - range[0]) + range[0];
+        // Round damage and integer stats
+        if (stat === 'damage' || stat === 'str' || stat === 'dex' || stat === 'int' || stat === 'vit' || stat === 'def' || stat === 'maxHp') {
+          item.stats[stat] = Math.floor(item.stats[stat]);
+        }
+      }
+    }
+  }
+  
+  // Generate random stat ranges
+  if (item.statRanges) {
+    item.generatedStats = {};
+    for (const [stat, range] of Object.entries(item.statRanges)) {
+      if (Array.isArray(range) && range.length === 2) {
+        item.generatedStats[stat] = Math.random() * (range[1] - range[0]) + range[0];
+      }
+    }
+  }
+  
+  // Generate random value if it's a range
+  if (Array.isArray(item.value) && item.value.length === 2) {
+    item.value = Math.floor(Math.random() * (item.value[1] - item.value[0]) + item.value[0]);
+  }
+  
+  // Generate unique ID for this instance
+  item.instanceId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  return item;
+}
+
+// Calculate equipment stat bonuses
+function calculateEquipmentStats(equipment) {
+  const bonuses = {
+    damage: 0,
+    str: 0,
+    dex: 0,
+    int: 0,
+    vit: 0,
+    def: 0,
+    maxHp: 0,
+    maxMp: 0,
+    mp: 0,
+    attackRange: 0
+  };
+  
+  for (const slot in equipment) {
+    const item = equipment[slot];
+    if (item && item.stats) {
+      for (const [stat, value] of Object.entries(item.stats)) {
+        if (bonuses.hasOwnProperty(stat)) {
+          bonuses[stat] += value;
+        }
+      }
+    }
+    
+    // Add attack range from weapon
+    if (slot === 'weapon' && item && item.attackRange) {
+      const range = Array.isArray(item.attackRange) 
+        ? Math.random() * (item.attackRange[1] - item.attackRange[0]) + item.attackRange[0]
+        : item.attackRange;
+      bonuses.attackRange = Math.floor(range);
+    }
+  }
+  
+  return bonuses;
+}
+
+// Generate loot drop from enemy
+function generateLootDrop(enemyLevel) {
+  const drops = [];
+  
+  // 30% chance for weapon drop
+  if (Math.random() < 0.3) {
+    const weapons = ITEM_DATABASE.weapons.filter(w => w.level <= enemyLevel + 2);
+    if (weapons.length > 0) {
+      const weapon = weapons[Math.floor(Math.random() * weapons.length)];
+      drops.push({ item: generateItemInstance(weapon, enemyLevel), type: 'weapon' });
+    }
+  }
+  
+  // 30% chance for armor drop
+  if (Math.random() < 0.3) {
+    const armor = ITEM_DATABASE.armor.filter(a => a.level <= enemyLevel + 2);
+    if (armor.length > 0) {
+      const armorPiece = armor[Math.floor(Math.random() * armor.length)];
+      drops.push({ item: generateItemInstance(armorPiece, enemyLevel), type: 'armor' });
+    }
+  }
+  
+  // 20% chance for accessory drop
+  if (Math.random() < 0.2) {
+    const accessories = ITEM_DATABASE.accessories.filter(a => a.level <= enemyLevel + 2);
+    if (accessories.length > 0) {
+      const accessory = accessories[Math.floor(Math.random() * accessories.length)];
+      drops.push({ item: generateItemInstance(accessory, enemyLevel), type: 'accessory' });
+    }
+  }
+  
+  // 40% chance for consumable drop
+  if (Math.random() < 0.4) {
+    const consumables = ITEM_DATABASE.consumables.filter(c => c.level <= enemyLevel + 2);
+    if (consumables.length > 0) {
+      const consumable = consumables[Math.floor(Math.random() * consumables.length)];
+      drops.push({ item: generateItemInstance(consumable, enemyLevel), type: 'consumable' });
+    }
+  }
+  
+  return drops;
 }
 
 // Base enemy templates (scaled by level)
@@ -739,19 +1202,33 @@ wss.on('connection', (ws) => {
           const accounts = await readAccounts();
           const account = accounts.find(acc => acc.username === data.username);
           if (account) {
+            // Calculate effective stats with equipment bonuses
+            const equipmentBonuses = calculateEquipmentStats(account.equipment || {});
+            const effectiveStats = {
+              maxHp: account.maxHp + Math.floor(equipmentBonuses.maxHp || 0),
+              maxMp: account.maxMp + Math.floor(equipmentBonuses.maxMp || 0),
+              str: account.str + Math.floor(equipmentBonuses.str || 0),
+              dex: account.dex + Math.floor(equipmentBonuses.dex || 0),
+              int: account.int + Math.floor(equipmentBonuses.int || 0),
+              vit: account.vit + Math.floor(equipmentBonuses.vit || 0),
+              def: account.def + Math.floor(equipmentBonuses.def || 0),
+              damage: Math.floor(equipmentBonuses.damage || 0)
+            };
+            
             characterData = {
               characterClass: account.characterClass,
               level: account.level,
               xp: account.xp,
               hp: account.hp,
-              maxHp: account.maxHp,
+              maxHp: effectiveStats.maxHp,
               mp: account.mp,
-              maxMp: account.maxMp,
-              str: account.str,
-              dex: account.dex,
-              int: account.int,
-              vit: account.vit,
-              def: account.def
+              maxMp: effectiveStats.maxMp,
+              str: effectiveStats.str,
+              dex: effectiveStats.dex,
+              int: effectiveStats.int,
+              vit: effectiveStats.vit,
+              def: effectiveStats.def,
+              damage: effectiveStats.damage
             };
           }
         } catch (error) {
@@ -878,6 +1355,17 @@ wss.on('connection', (ws) => {
                     account.xp += xpReward;
                     account.score += enemy.baseGold;
                     
+                    // Generate loot drops
+                    const lootDrops = generateLootDrop(enemy.level);
+                    if (lootDrops.length > 0) {
+                      if (!account.inventory) {
+                        account.inventory = [];
+                      }
+                      lootDrops.forEach(drop => {
+                        account.inventory.push(drop.item);
+                      });
+                    }
+                    
                     // Check for level up
                     let leveledUp = false;
                     while (account.xp >= getXPForLevel(account.level)) {
@@ -934,13 +1422,14 @@ wss.on('connection', (ws) => {
                       level: account.level
                     }));
                     
-                    // Broadcast enemy death with calculated XP
+                    // Broadcast enemy death with calculated XP and loot
                     broadcast({
                       type: 'enemyKilled',
                       enemyId: enemy.id,
                       xpReward: xpReward,
                       goldReward: enemy.baseGold,
-                      killer: player.username
+                      killer: player.username,
+                      loot: lootDrops.map(drop => drop.item)
                     });
                   }
                 } catch (error) {

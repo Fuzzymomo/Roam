@@ -56,6 +56,13 @@ let respawnMessage = '';
 let respawnMessageTimer = 0;
 let nearPortal = null;
 
+// Inventory system
+let inventory = [];
+let equipment = {};
+let itemDatabase = { weapons: [], armor: [], consumables: [], accessories: [] };
+let showInventory = false;
+let selectedInventorySlot = null;
+
 // Login/Signup handlers
 document.getElementById('loginBtn').addEventListener('click', () => {
   const username = document.getElementById('usernameInput').value.trim();
@@ -110,6 +117,19 @@ async function login(username) {
       player.vit = data.vit || 10;
       player.def = data.def || 10;
       player.xpForNextLevel = getXPForLevel(player.level);
+      
+      // Load inventory and equipment
+      inventory = data.inventory || [];
+      equipment = data.equipment || {};
+      
+      // Load item database
+      try {
+        const itemsResponse = await fetch('/api/items');
+        const itemsData = await itemsResponse.json();
+        itemDatabase = itemsData.items || { weapons: [], armor: [], consumables: [], accessories: [] };
+      } catch (error) {
+        console.error('Error loading items:', error);
+      }
       
       startGame();
     } else {
@@ -546,7 +566,13 @@ function startGame() {
       
       if (data.killer === player.username) {
         // Show kill notification
-        levelUpMessage = `Killed ${data.xpReward} XP, ${data.goldReward} Gold!`;
+        let lootText = '';
+        if (data.loot && data.loot.length > 0) {
+          lootText = ` + ${data.loot.length} item(s)`;
+          // Add loot to inventory
+          inventory = inventory.concat(data.loot);
+        }
+        levelUpMessage = `Killed ${data.xpReward} XP, ${data.goldReward} Gold${lootText}!`;
         levelUpTimer = 120;
       }
     }
@@ -613,6 +639,11 @@ function startGame() {
     // Toggle character sheet (C key)
     if (e.key === 'c' || e.key === 'C') {
       showCharacterSheet = !showCharacterSheet;
+    }
+    
+    // Toggle inventory (I key)
+    if (e.key === 'i' || e.key === 'I') {
+      showInventory = !showInventory;
     }
   });
   
@@ -833,6 +864,11 @@ function draw() {
     drawCharacterSheet();
   }
   
+  // Draw inventory
+  if (showInventory) {
+    drawInventory();
+  }
+  
   // Draw minimap
   drawMinimap();
   
@@ -840,7 +876,7 @@ function draw() {
   fill(255, 200);
   textAlign(LEFT);
   textSize(12);
-  text('WASD to move | C - Character Sheet | Click to attack enemies', 10, canvasHeight - 30);
+  text('WASD to move | C - Character Sheet | I - Inventory | Click to attack enemies', 10, canvasHeight - 30);
   text('Kill enemies to gain XP! Higher level mobs give more XP.', 10, canvasHeight - 15);
 }
 
@@ -920,9 +956,240 @@ function drawDamageNumbers() {
   }
 }
 
+// Handle inventory clicks
+function handleInventoryClick(mx, my) {
+  const invWidth = 600;
+  const invHeight = 500;
+  const invX = (canvasWidth - invWidth) / 2;
+  const invY = (canvasHeight - invHeight) / 2;
+  
+  // Check if click is in inventory area
+  if (mx < invX || mx > invX + invWidth || my < invY || my > invY + invHeight) {
+    return;
+  }
+  
+  // First, check if clicking on action button (if item is selected)
+  if (selectedInventorySlot !== null && selectedInventorySlot < inventory.length) {
+    const infoY = invY + invHeight - 100;
+    const item = inventory[selectedInventorySlot];
+    
+    // Check if clicking on Use/Equip button
+    if (mx >= invX + invWidth - 120 && mx <= invX + invWidth - 20 &&
+        my >= infoY + 50 && my <= infoY + 75) {
+      if (item.type === 'consumable') {
+        useItem(selectedInventorySlot);
+      } else if (item.type === 'weapon' || item.type === 'armor' || item.type === 'accessory') {
+        equipItem(selectedInventorySlot);
+      }
+      return;
+    }
+  }
+  
+  // Check equipment slot clicks (for unequipping)
+  const equipX = invX + 20;
+  const equipY = invY + 70;
+  const slotSize = 60;
+  const slotSpacing = 70;
+  
+  const equipmentSlots = [
+    { slot: 'weapon', x: equipX, y: equipY },
+    { slot: 'helmet', x: equipX, y: equipY + slotSpacing },
+    { slot: 'chest', x: equipX, y: equipY + slotSpacing * 2 },
+    { slot: 'legs', x: equipX, y: equipY + slotSpacing * 3 },
+    { slot: 'boots', x: equipX, y: equipY + slotSpacing * 4 },
+    { slot: 'ring1', x: equipX + slotSpacing, y: equipY + slotSpacing * 2 },
+    { slot: 'ring2', x: equipX + slotSpacing, y: equipY + slotSpacing * 3 },
+    { slot: 'necklace', x: equipX + slotSpacing, y: equipY + slotSpacing * 4 }
+  ];
+  
+  for (let slot of equipmentSlots) {
+    if (mx >= slot.x && mx <= slot.x + slotSize && 
+        my >= slot.y && my <= slot.y + slotSize) {
+      if (equipment[slot.slot]) {
+        unequipItem(slot.slot);
+      } else {
+        selectedInventorySlot = null; // Deselect if clicking empty slot
+      }
+      return;
+    }
+  }
+  
+  // Check inventory grid clicks
+  const invGridX = invX + 200;
+  const invGridY = invY + 70;
+  const gridCols = 6;
+  const gridRows = 5;
+  const gridSlotSize = 50;
+  const gridSpacing = 55;
+  
+  for (let row = 0; row < gridRows; row++) {
+    for (let col = 0; col < gridCols; col++) {
+      const slotX = invGridX + col * gridSpacing;
+      const slotY = invGridY + row * gridSpacing;
+      const index = row * gridCols + col;
+      
+      if (mx >= slotX && mx <= slotX + gridSlotSize && 
+          my >= slotY && my <= slotY + gridSlotSize) {
+        if (index < inventory.length) {
+          selectedInventorySlot = index;
+        } else {
+          selectedInventorySlot = null;
+        }
+        return;
+      }
+    }
+  }
+  
+  // If clicked elsewhere in inventory, deselect
+  selectedInventorySlot = null;
+}
+
+// Equip item
+async function equipItem(inventoryIndex) {
+  if (inventoryIndex >= inventory.length) return;
+  
+  const item = inventory[inventoryIndex];
+  let slot = null;
+  
+  // Determine slot based on item type
+  if (item.type === 'weapon') {
+    slot = 'weapon';
+  } else if (item.type === 'armor') {
+    slot = item.slot; // helmet, chest, legs, boots
+  } else if (item.type === 'accessory') {
+    if (item.slot === 'ring') {
+      slot = equipment.ring1 ? 'ring2' : 'ring1';
+    } else if (item.slot === 'necklace') {
+      slot = 'necklace';
+    }
+  }
+  
+  if (!slot) return;
+  
+  try {
+    const response = await fetch('/api/inventory/equip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: player.username,
+        itemInstanceId: item.instanceId,
+        slot: slot
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      inventory = data.inventory;
+      equipment = data.equipment;
+      selectedInventorySlot = null;
+      // Recalculate stats with equipment
+      await loadPlayerStats();
+    }
+  } catch (error) {
+    console.error('Error equipping item:', error);
+  }
+}
+
+// Unequip item
+async function unequipItem(slot) {
+  try {
+    const response = await fetch('/api/inventory/unequip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: player.username,
+        slot: slot
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      inventory = data.inventory;
+      equipment = data.equipment;
+      // Recalculate stats with equipment
+      await loadPlayerStats();
+    }
+  } catch (error) {
+    console.error('Error unequipping item:', error);
+  }
+}
+
+// Use consumable
+async function useItem(inventoryIndex) {
+  if (inventoryIndex >= inventory.length) return;
+  
+  const item = inventory[inventoryIndex];
+  if (item.type !== 'consumable') return;
+  
+  try {
+    const response = await fetch('/api/inventory/use', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: player.username,
+        itemInstanceId: item.instanceId
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      inventory = data.inventory;
+      player.hp = data.hp;
+      player.mp = data.mp;
+      player.xp = data.xp;
+      updateCharacterDisplay();
+      selectedInventorySlot = null;
+    }
+  } catch (error) {
+    console.error('Error using item:', error);
+  }
+}
+
+// Load player stats with equipment bonuses
+async function loadPlayerStats() {
+  try {
+    const response = await fetch(`/api/inventory/${player.username}`);
+    const data = await response.json();
+    inventory = data.inventory || [];
+    equipment = data.equipment || {};
+    
+    // Calculate equipment bonuses (client-side calculation)
+    // Note: Server should also apply these, but we calculate here for display
+    // For now, we'll just reload from server which should have calculated stats
+    const loginResponse = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: player.username })
+    });
+    const loginData = await loginResponse.json();
+    if (loginResponse.ok) {
+      player.hp = loginData.hp;
+      player.maxHp = loginData.maxHp;
+      player.mp = loginData.mp;
+      player.maxMp = loginData.maxMp;
+      player.str = loginData.str;
+      player.dex = loginData.dex;
+      player.int = loginData.int;
+      player.vit = loginData.vit;
+      player.def = loginData.def;
+      updateCharacterDisplay();
+    }
+  } catch (error) {
+    console.error('Error loading player stats:', error);
+  }
+}
+
 // p5.js mouse pressed handler
 function mousePressed() {
-  if (!loggedIn || player.hp <= 0) return;
+  if (!loggedIn) return;
+  
+  // Handle inventory clicks
+  if (showInventory) {
+    handleInventoryClick(mouseX, mouseY);
+    return;
+  }
+  
+  if (player.hp <= 0) return;
   
   const now = Date.now();
   if (now - lastAttackTime < attackCooldown) return;
@@ -1150,6 +1417,185 @@ function drawCharacterSheet() {
   fill(150, 150, 150);
   textSize(12);
   text('Press C to close', sheetX + sheetWidth / 2, sheetY + sheetHeight - 20);
+}
+
+// Draw inventory UI
+function drawInventory() {
+  const invWidth = 600;
+  const invHeight = 500;
+  const invX = (canvasWidth - invWidth) / 2;
+  const invY = (canvasHeight - invHeight) / 2;
+  
+  // Background
+  fill(30, 30, 40, 240);
+  stroke(100, 150, 200);
+  strokeWeight(3);
+  rect(invX, invY, invWidth, invHeight);
+  
+  // Title
+  fill(255, 255, 255);
+  textAlign(CENTER);
+  textSize(24);
+  textStyle(BOLD);
+  text('Inventory', invX + invWidth / 2, invY + 35);
+  textStyle(NORMAL);
+  
+  // Equipment slots (left side)
+  const equipX = invX + 20;
+  const equipY = invY + 70;
+  const slotSize = 60;
+  const slotSpacing = 70;
+  
+  textAlign(LEFT);
+  textSize(16);
+  fill(200, 200, 255);
+  text('Equipment', equipX, equipY - 10);
+  
+  // Equipment slots
+  const equipmentSlots = [
+    { name: 'Weapon', slot: 'weapon', x: equipX, y: equipY },
+    { name: 'Helmet', slot: 'helmet', x: equipX, y: equipY + slotSpacing },
+    { name: 'Chest', slot: 'chest', x: equipX, y: equipY + slotSpacing * 2 },
+    { name: 'Legs', slot: 'legs', x: equipX, y: equipY + slotSpacing * 3 },
+    { name: 'Boots', slot: 'boots', x: equipX, y: equipY + slotSpacing * 4 },
+    { name: 'Ring 1', slot: 'ring1', x: equipX + slotSpacing, y: equipY + slotSpacing * 2 },
+    { name: 'Ring 2', slot: 'ring2', x: equipX + slotSpacing, y: equipY + slotSpacing * 3 },
+    { name: 'Necklace', slot: 'necklace', x: equipX + slotSpacing, y: equipY + slotSpacing * 4 }
+  ];
+  
+  for (let slot of equipmentSlots) {
+    // Slot background
+    fill(40, 40, 50);
+    stroke(80, 80, 100);
+    strokeWeight(2);
+    rect(slot.x, slot.y, slotSize, slotSize);
+    
+    // Slot label
+    fill(150, 150, 150);
+    textSize(10);
+    textAlign(CENTER);
+    text(slot.name, slot.x + slotSize / 2, slot.y + slotSize + 12);
+    
+    // Draw equipped item
+    if (equipment[slot.slot]) {
+      const item = equipment[slot.slot];
+      fill(100, 150, 200);
+      stroke(150, 200, 255);
+      strokeWeight(2);
+      rect(slot.x + 5, slot.y + 5, slotSize - 10, slotSize - 10);
+      
+      // Item name (truncated)
+      fill(255);
+      textSize(8);
+      text(item.name.substring(0, 8), slot.x + slotSize / 2, slot.y + slotSize / 2);
+    }
+  }
+  
+  // Inventory grid (right side)
+  const invGridX = invX + 200;
+  const invGridY = invY + 70;
+  const gridCols = 6;
+  const gridRows = 5;
+  const gridSlotSize = 50;
+  const gridSpacing = 55;
+  
+  textAlign(LEFT);
+  textSize(16);
+  fill(200, 200, 255);
+  text('Inventory', invGridX, invGridY - 10);
+  
+  // Draw inventory grid
+  for (let row = 0; row < gridRows; row++) {
+    for (let col = 0; col < gridCols; col++) {
+      const slotX = invGridX + col * gridSpacing;
+      const slotY = invGridY + row * gridSpacing;
+      const index = row * gridCols + col;
+      
+      // Slot background
+      fill(40, 40, 50);
+      stroke(80, 80, 100);
+      strokeWeight(1);
+      rect(slotX, slotY, gridSlotSize, gridSlotSize);
+      
+      // Draw item if exists
+      if (index < inventory.length) {
+        const item = inventory[index];
+        const rarityColors = {
+          common: [150, 150, 150],
+          uncommon: [100, 200, 100],
+          rare: [100, 150, 255],
+          epic: [200, 100, 255],
+          legendary: [255, 200, 100]
+        };
+        const color = rarityColors[item.baseRarity] || [150, 150, 150];
+        
+        fill(color[0], color[1], color[2]);
+        stroke(color[0] + 50, color[1] + 50, color[2] + 50);
+        strokeWeight(2);
+        rect(slotX + 3, slotY + 3, gridSlotSize - 6, gridSlotSize - 6);
+        
+        // Item name (very small)
+        fill(255);
+        textSize(7);
+        textAlign(CENTER);
+        text(item.name.substring(0, 6), slotX + gridSlotSize / 2, slotY + gridSlotSize / 2);
+      }
+    }
+  }
+  
+  // Item info (bottom)
+  if (selectedInventorySlot !== null && selectedInventorySlot < inventory.length) {
+    const item = inventory[selectedInventorySlot];
+    const infoY = invY + invHeight - 100;
+    
+    fill(50, 50, 60, 200);
+    stroke(100, 150, 200);
+    strokeWeight(2);
+    rect(invX + 20, infoY, invWidth - 40, 80);
+    
+    textAlign(LEFT);
+    textSize(14);
+    fill(255, 255, 255);
+    textStyle(BOLD);
+    text(item.name, invX + 30, infoY + 20);
+    textStyle(NORMAL);
+    
+    textSize(10);
+    fill(200, 200, 200);
+    text(item.description || 'No description', invX + 30, infoY + 40);
+    
+    // Item stats
+    if (item.stats) {
+      let statsText = '';
+      for (const [stat, value] of Object.entries(item.stats)) {
+        if (typeof value === 'number') {
+          statsText += `${stat}: ${Math.floor(value)} `;
+        }
+      }
+      text(statsText, invX + 30, infoY + 55);
+    }
+    
+    // Action buttons
+    if (item.type === 'consumable') {
+      fill(100, 200, 100);
+      rect(invX + invWidth - 120, infoY + 50, 100, 25);
+      fill(255);
+      textAlign(CENTER);
+      text('Use', invX + invWidth - 70, infoY + 67);
+    } else if (item.type === 'weapon' || item.type === 'armor' || item.type === 'accessory') {
+      fill(150, 150, 255);
+      rect(invX + invWidth - 120, infoY + 50, 100, 25);
+      fill(255);
+      textAlign(CENTER);
+      text('Equip', invX + invWidth - 70, infoY + 67);
+    }
+  }
+  
+  // Close hint
+  textAlign(CENTER);
+  fill(150, 150, 150);
+  textSize(12);
+  text('Press I to close | Click items to select', invX + invWidth / 2, invY + invHeight - 15);
 }
 
 // Draw zone name when entering a new zone
