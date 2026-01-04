@@ -77,6 +77,7 @@ function draw() {
   Camera.update();
   World.checkZoneChange();
   Portal.checkNearby();
+  Skills.update();
   
   // Draw world
   World.draw();
@@ -108,14 +109,15 @@ function draw() {
   
   UI.drawMinimap();
   Chat.drawFloatingMessages();
+  Skills.drawSkillBar();
   
   // Draw instructions
   fill(255, 200);
   textAlign(LEFT);
   textSize(12);
-  text('WASD to move | C - Character Sheet | I - Inventory | Click to attack enemies | Enter - Chat', 
+  text('WASD to move | C - Character Sheet | I - Inventory | Click to attack | 1/2/3 - Skills | Enter - Chat', 
        10, GameState.canvasHeight - 30);
-  text('Kill enemies to gain XP! Higher level mobs give more XP. Chat with other players!', 
+  text('Kill enemies to gain XP! Higher level mobs give more XP. Use skills (1/2/3) for special abilities!', 
        10, GameState.canvasHeight - 15);
 }
 

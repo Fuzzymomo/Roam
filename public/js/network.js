@@ -89,6 +89,9 @@ const Network = {
         // Load item database
         await Inventory.initialize();
         
+        // Initialize skills
+        Skills.init();
+        
         this.startGame();
       } else {
         Utils.showError(data.error || 'Login failed');
@@ -529,10 +532,29 @@ const Network = {
             y: screenPos.y - 20,
             damage: data.damage,
             timer: 60,
-            color: [255, 100, 100]
+            color: data.isCrit ? [255, 255, 0] : (data.isDot ? [150, 255, 150] : [255, 100, 100])
           });
         }
       }
+    }
+    
+    if (data.type === 'playerUpdate') {
+      if (data.mp !== undefined) GameState.player.mp = data.mp;
+      if (data.maxMp !== undefined) GameState.player.maxMp = data.maxMp;
+      if (data.hp !== undefined) GameState.player.hp = data.hp;
+      if (data.maxHp !== undefined) GameState.player.maxHp = data.maxHp;
+      Character.updateDisplay();
+    }
+    
+    if (data.type === 'skillEffect') {
+      // Visual effect for skills (could be enhanced with particles)
+      console.log('Skill used:', data.skillId, 'by', data.user);
+    }
+    
+    if (data.type === 'skillError') {
+      // Show error message
+      GameState.levelUpMessage = data.message;
+      GameState.levelUpTimer = 120;
     }
     
     if (data.type === 'enemyKilled') {
@@ -632,6 +654,44 @@ const Network = {
       // Close chat (Escape key when typing)
       if (e.key === 'Escape' && document.activeElement.id === 'chatInputField') {
         document.getElementById('chatInputField').blur();
+      }
+      
+      // Skill hotkeys (1, 2, 3)
+      if (e.key === '1' || e.key === '2' || e.key === '3') {
+        if (GameState.loggedIn && !Inventory.show && !GameState.showCharacterSheet && 
+            document.activeElement.id !== 'chatInputField' && Skills.skills) {
+          const skill = Skills.getSkillByKey(e.key);
+          if (skill) {
+            // For targeted skills, find nearest enemy or use null to let server auto-target
+            let targetX = null;
+            let targetY = null;
+            
+            // For skills that need targeting (charge, fireball, etc.), find nearest enemy
+            if (skill.range && skill.range > 0) {
+              let nearestEnemy = null;
+              let nearestDistance = Infinity;
+              
+              GameState.enemies.forEach(enemy => {
+                if (enemy.hp <= 0) return;
+                const distance = Math.sqrt(
+                  Math.pow(GameState.player.x - enemy.x, 2) + 
+                  Math.pow(GameState.player.y - enemy.y, 2)
+                );
+                if (distance < skill.range * 1.5 && distance < nearestDistance) {
+                  nearestDistance = distance;
+                  nearestEnemy = enemy;
+                }
+              });
+              
+              if (nearestEnemy) {
+                targetX = nearestEnemy.x;
+                targetY = nearestEnemy.y;
+              }
+            }
+            
+            Skills.useSkill(skill.id, targetX, targetY);
+          }
+        }
       }
     });
     

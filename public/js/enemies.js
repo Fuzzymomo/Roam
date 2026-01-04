@@ -77,9 +77,10 @@ const Enemies = {
       const alpha = map(dmg.timer, 0, 60, 0, 255);
       fill(dmg.color[0], dmg.color[1], dmg.color[2], alpha);
       textAlign(CENTER);
-      textSize(16);
+      textSize(dmg.color[0] === 255 && dmg.color[1] === 255 ? 20 : 16); // Larger for crits
       textStyle(BOLD);
-      text(`-${dmg.damage}`, dmg.x, dmg.y);
+      const damageText = dmg.color[0] === 255 && dmg.color[1] === 255 ? `CRIT! -${dmg.damage}` : `-${dmg.damage}`;
+      text(damageText, dmg.x, dmg.y);
       textStyle(NORMAL);
     }
   }

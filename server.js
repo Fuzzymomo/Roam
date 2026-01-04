@@ -1170,18 +1170,68 @@ function spawnEnemies() {
 }
 
 
-// Calculate damage
-function calculateDamage(attacker, defender) {
-  let baseDamage = attacker.damage || attacker.str || 10;
-  let defense = defender.defense || defender.def || 0;
+// Skill definitions (same as client)
+const CLASS_SKILLS = {
+  warrior: {
+    charge: { mpCost: 20, cooldown: 4000, range: 120, damageMultiplier: 2.5 },
+    whirlwind: { mpCost: 30, cooldown: 6000, range: 80, damageMultiplier: 1.8 },
+    taunt: { mpCost: 15, cooldown: 8000, range: 100, defenseBonus: 10, duration: 5000 }
+  },
+  mage: {
+    fireball: { mpCost: 25, cooldown: 2500, range: 180, damageMultiplier: 3.0 },
+    ice_bolt: { mpCost: 20, cooldown: 3000, range: 150, damageMultiplier: 2.2, slowAmount: 0.3 },
+    shield: { mpCost: 40, cooldown: 12000, duration: 8000, damageReduction: 0.75 }
+  },
+  rogue: {
+    dash: { mpCost: 15, cooldown: 3000, range: 100, invincibilityDuration: 500 },
+    backstab: { mpCost: 25, cooldown: 5000, range: 50, damageMultiplier: 4.0 },
+    poison: { mpCost: 20, cooldown: 4000, range: 60, damageMultiplier: 1.5, dotDamage: 10, dotDuration: 8000 }
+  },
+  paladin: {
+    heal: { mpCost: 30, cooldown: 6000, healAmount: 100 },
+    smite: { mpCost: 25, cooldown: 4000, range: 90, damageMultiplier: 3.0 },
+    aura: { mpCost: 35, cooldown: 10000, range: 120, defenseBonus: 15, hpRegenBonus: 2, duration: 10000 }
+  }
+};
+
+// Track player skill cooldowns
+const playerSkillCooldowns = new Map(); // Map<ws, Map<skillId, cooldown>>
+
+// Track player active effects
+const playerEffects = new Map(); // Map<ws, {shield: {active, timer}, aura: {active, timer}, poison: {...}}>
+
+// Calculate damage with improved mechanics
+function calculateDamage(attacker, defender, skillMultiplier = 1.0) {
+  // Base damage calculation - use STR for physical, INT for magical
+  const isPhysical = attacker.characterClass !== 'mage';
+  const baseStat = isPhysical ? (attacker.str || 10) : (attacker.int || 10);
+  let baseDamage = attacker.damage || baseStat;
   
-  // Damage = base damage - defense (minimum 1)
-  let damage = Math.max(1, baseDamage - defense);
+  // Apply skill multiplier
+  baseDamage *= skillMultiplier;
   
-  // Add some randomness (80-120% of base damage)
-  damage = Math.floor(damage * (0.8 + Math.random() * 0.4));
+  // Defense calculation - reduces damage by percentage
+  const defense = defender.defense || defender.def || 0;
+  const defenseReduction = defense / (defense + 100); // Diminishing returns
   
-  return damage;
+  // Calculate damage after defense
+  let damage = baseDamage * (1 - defenseReduction);
+  
+  // Critical hit chance based on DEX
+  const critChance = (attacker.dex || 10) / 200; // 5% base at 10 DEX, scales up
+  const isCrit = Math.random() < critChance;
+  
+  if (isCrit) {
+    damage *= 2.0; // Critical hits do 2x damage
+  }
+  
+  // Add randomness (85-115% of calculated damage)
+  damage = Math.floor(damage * (0.85 + Math.random() * 0.3));
+  
+  // Minimum damage of 1
+  damage = Math.max(1, damage);
+  
+  return { damage, isCrit };
 }
 
 wss.on('connection', (ws) => {
@@ -1408,21 +1458,25 @@ wss.on('connection', (ws) => {
         if (player) {
           const enemy = enemies.get(data.enemyId);
           if (enemy && enemy.hp > 0) {
+            // Get attack range from weapon or default
+            const attackRange = player.attackRange || 50;
+            
             // Check if player is in range
             const distance = Math.sqrt(
               Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2)
             );
             
-            if (distance < 50) { // Attack range
+            if (distance < attackRange) {
               // Calculate damage
-              const damage = calculateDamage(player, enemy);
-              enemy.hp -= damage;
+              const result = calculateDamage(player, enemy);
+              enemy.hp -= result.damage;
               
               // Broadcast damage
               broadcast({
                 type: 'enemyDamaged',
                 enemyId: enemy.id,
-                damage: damage,
+                damage: result.damage,
+                isCrit: result.isCrit,
                 hp: enemy.hp,
                 maxHp: enemy.maxHp,
                 attacker: player.username
@@ -1564,6 +1618,551 @@ wss.on('connection', (ws) => {
           }
         }
       }
+      
+      if (data.type === 'useSkill') {
+        const player = players.get(ws);
+        if (!player) return;
+        
+        const skillId = data.skillId;
+        const playerClass = player.characterClass || 'warrior';
+        const classSkills = CLASS_SKILLS[playerClass];
+        
+        if (!classSkills || !classSkills[skillId]) {
+          ws.send(JSON.stringify({
+            type: 'skillError',
+            message: 'Invalid skill for your class'
+          }));
+          return;
+        }
+        
+        const skill = classSkills[skillId];
+        const now = Date.now();
+        
+        // Initialize cooldown tracking
+        if (!playerSkillCooldowns.has(ws)) {
+          playerSkillCooldowns.set(ws, new Map());
+        }
+        const cooldowns = playerSkillCooldowns.get(ws);
+        
+        // Check cooldown
+        if (cooldowns.has(skillId)) {
+          const lastUsed = cooldowns.get(skillId);
+          if (now - lastUsed < skill.cooldown) {
+            ws.send(JSON.stringify({
+              type: 'skillError',
+              message: 'Skill is on cooldown'
+            }));
+            return;
+          }
+        }
+        
+        // Check MP
+        if (player.mp < skill.mpCost) {
+          ws.send(JSON.stringify({
+            type: 'skillError',
+            message: 'Not enough MP'
+          }));
+          return;
+        }
+        
+        // Consume MP
+        player.mp = Math.max(0, player.mp - skill.mpCost);
+        cooldowns.set(skillId, now);
+        
+        // Handle different skills
+        if (skillId === 'charge') {
+          // Charge: dash forward and damage first enemy
+          // Find nearest enemy to charge towards (within charge range)
+          let targetEnemy = null;
+          let nearestDist = skill.range * 1.5; // Look for enemies slightly beyond range
+          
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              targetEnemy = enemy;
+            }
+          });
+          
+          // Determine charge direction
+          let targetX, targetY;
+          if (targetEnemy) {
+            // Charge towards the nearest enemy
+            targetX = targetEnemy.x;
+            targetY = targetEnemy.y;
+          } else if (data.targetX && data.targetY && 
+                     (data.targetX !== player.x || data.targetY !== player.y)) {
+            // Use provided target
+            targetX = data.targetX;
+            targetY = data.targetY;
+          } else {
+            // No valid target, don't charge
+            ws.send(JSON.stringify({
+              type: 'skillError',
+              message: 'No target found for Charge'
+            }));
+            return;
+          }
+          
+          const dx = targetX - player.x;
+          const dy = targetY - player.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance > 0) {
+            const moveDistance = Math.min(skill.range, distance);
+            const oldX = player.x;
+            const oldY = player.y;
+            
+            // Move player
+            player.x += (dx / distance) * moveDistance;
+            player.y += (dy / distance) * moveDistance;
+            
+            // Find first enemy hit along the path or at destination
+            let hitEnemy = null;
+            let minDist = 50; // Hit detection range
+            
+            enemies.forEach((enemy, enemyId) => {
+              if (enemy.hp <= 0) return;
+              
+              // Check distance from charge path
+              const distToOld = Math.sqrt(Math.pow(oldX - enemy.x, 2) + Math.pow(oldY - enemy.y, 2));
+              const distToNew = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+              
+              // Hit if enemy is close to the path or destination
+              if (distToNew < minDist) {
+                if (!hitEnemy || distToNew < minDist) {
+                  minDist = distToNew;
+                  hitEnemy = enemy;
+                }
+              }
+            });
+            
+            if (hitEnemy) {
+              const result = calculateDamage(player, hitEnemy, skill.damageMultiplier);
+              hitEnemy.hp -= result.damage;
+              broadcast({
+                type: 'enemyDamaged',
+                enemyId: hitEnemy.id,
+                damage: result.damage,
+                isCrit: result.isCrit,
+                hp: hitEnemy.hp,
+                maxHp: hitEnemy.maxHp,
+                attacker: player.username,
+                skill: skillId
+              });
+            }
+            
+            // Broadcast player movement
+            broadcast({
+              type: 'playerMove',
+              username: player.username,
+              x: player.x,
+              y: player.y
+            });
+          }
+          
+        } else if (skillId === 'whirlwind') {
+          // Whirlwind: damage all nearby enemies
+          const hitEnemies = [];
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < skill.range) {
+              const result = calculateDamage(player, enemy, skill.damageMultiplier);
+              enemy.hp -= result.damage;
+              hitEnemies.push({
+                enemyId: enemy.id,
+                damage: result.damage,
+                isCrit: result.isCrit,
+                hp: enemy.hp,
+                maxHp: enemy.maxHp
+              });
+            }
+          });
+          
+          broadcast({
+            type: 'skillEffect',
+            skillId: skillId,
+            user: player.username,
+            x: player.x,
+            y: player.y,
+            range: skill.range
+          });
+          
+          hitEnemies.forEach(hit => {
+            broadcast({
+              type: 'enemyDamaged',
+              enemyId: hit.enemyId,
+              damage: hit.damage,
+              isCrit: hit.isCrit,
+              hp: hit.hp,
+              maxHp: hit.maxHp,
+              attacker: player.username,
+              skill: skillId
+            });
+          });
+          
+        } else if (skillId === 'fireball') {
+          // Fireball: ranged projectile
+          // Find nearest enemy within range
+          let targetEnemy = null;
+          let minDist = skill.range;
+          
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < skill.range && dist < minDist) {
+              minDist = dist;
+              targetEnemy = enemy;
+            }
+          });
+          
+          // If target position provided, check if there's an enemy near it
+          if (!targetEnemy && data.targetX && data.targetY) {
+            const targetX = data.targetX;
+            const targetY = data.targetY;
+            enemies.forEach((enemy, enemyId) => {
+              if (enemy.hp <= 0) return;
+              const dist = Math.sqrt(Math.pow(targetX - enemy.x, 2) + Math.pow(targetY - enemy.y, 2));
+              if (dist < 50 && dist < minDist) {
+                minDist = dist;
+                targetEnemy = enemy;
+              }
+            });
+          }
+          
+          if (targetEnemy) {
+            const result = calculateDamage(player, targetEnemy, skill.damageMultiplier);
+            targetEnemy.hp -= result.damage;
+            broadcast({
+              type: 'enemyDamaged',
+              enemyId: targetEnemy.id,
+              damage: result.damage,
+              isCrit: result.isCrit,
+              hp: targetEnemy.hp,
+              maxHp: targetEnemy.maxHp,
+              attacker: player.username,
+              skill: skillId
+            });
+          }
+          
+          broadcast({
+            type: 'skillEffect',
+            skillId: skillId,
+            user: player.username,
+            x: player.x,
+            y: player.y,
+            targetX: targetX,
+            targetY: targetY
+          });
+          
+        } else if (skillId === 'ice_bolt') {
+          // Ice Bolt: freeze and slow
+          // Find nearest enemy within range
+          let targetEnemy = null;
+          let minDist = skill.range;
+          
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < skill.range && dist < minDist) {
+              minDist = dist;
+              targetEnemy = enemy;
+            }
+          });
+          
+          // If target position provided, check if there's an enemy near it
+          if (!targetEnemy && data.targetX && data.targetY) {
+            const targetX = data.targetX;
+            const targetY = data.targetY;
+            enemies.forEach((enemy, enemyId) => {
+              if (enemy.hp <= 0) return;
+              const dist = Math.sqrt(Math.pow(targetX - enemy.x, 2) + Math.pow(targetY - enemy.y, 2));
+              if (dist < 50 && dist < minDist) {
+                minDist = dist;
+                targetEnemy = enemy;
+              }
+            });
+          }
+          
+          if (targetEnemy) {
+            const result = calculateDamage(player, targetEnemy, skill.damageMultiplier);
+            targetEnemy.hp -= result.damage;
+            const slowAmount = skill.slowAmount || 0.5; // Default 50% if not specified
+            const originalSpeed = targetEnemy.speed || 1;
+            targetEnemy.speed = originalSpeed * slowAmount; // Stronger slow
+            setTimeout(() => {
+              if (targetEnemy && targetEnemy.speed) {
+                targetEnemy.speed = originalSpeed; // Restore original speed
+              }
+            }, 5000); // Longer slow duration
+            
+            broadcast({
+              type: 'enemyDamaged',
+              enemyId: targetEnemy.id,
+              damage: result.damage,
+              isCrit: result.isCrit,
+              hp: targetEnemy.hp,
+              maxHp: targetEnemy.maxHp,
+              attacker: player.username,
+              skill: skillId
+            });
+          }
+          
+        } else if (skillId === 'shield') {
+          // Magic Shield: powerful damage reduction
+          if (!playerEffects.has(ws)) {
+            playerEffects.set(ws, {});
+          }
+          const effects = playerEffects.get(ws);
+          const damageReduction = skill.damageReduction || 0.5; // Default 50% if not specified
+          effects.shield = { active: true, timer: skill.duration, damageReduction: damageReduction };
+          
+          broadcast({
+            type: 'skillEffect',
+            skillId: skillId,
+            user: player.username
+          });
+          
+        } else if (skillId === 'dash') {
+          // Dash: quick movement with brief invincibility
+          const targetX = data.targetX || player.x;
+          const targetY = data.targetY || player.y;
+          const dx = targetX - player.x;
+          const dy = targetY - player.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance > 0) {
+            const moveDistance = Math.min(skill.range, distance);
+            player.x += (dx / distance) * moveDistance;
+            player.y += (dy / distance) * moveDistance;
+            
+            // Apply brief invincibility
+            if (skill.invincibilityDuration) {
+              if (!playerEffects.has(ws)) {
+                playerEffects.set(ws, {});
+              }
+              const effects = playerEffects.get(ws);
+              effects.invincible = { active: true, timer: skill.invincibilityDuration };
+            }
+            
+            broadcast({
+              type: 'playerMove',
+              username: player.username,
+              x: player.x,
+              y: player.y
+            });
+          }
+          
+        } else if (skillId === 'backstab') {
+          // Backstab: high damage from behind
+          // Find nearest enemy within range
+          let targetEnemy = null;
+          let minDist = skill.range;
+          
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < skill.range && dist < minDist) {
+              minDist = dist;
+              targetEnemy = enemy;
+            }
+          });
+          
+          // If target position provided, check if there's an enemy near it
+          if (!targetEnemy && data.targetX && data.targetY) {
+            const targetX = data.targetX;
+            const targetY = data.targetY;
+            enemies.forEach((enemy, enemyId) => {
+              if (enemy.hp <= 0) return;
+              const dist = Math.sqrt(Math.pow(targetX - enemy.x, 2) + Math.pow(targetY - enemy.y, 2));
+              if (dist < 50 && dist < minDist) {
+                minDist = dist;
+                targetEnemy = enemy;
+              }
+            });
+          }
+          
+          if (targetEnemy) {
+            const result = calculateDamage(player, targetEnemy, skill.damageMultiplier);
+            targetEnemy.hp -= result.damage;
+            broadcast({
+              type: 'enemyDamaged',
+              enemyId: targetEnemy.id,
+              damage: result.damage,
+              isCrit: true, // Backstab always crits
+              hp: targetEnemy.hp,
+              maxHp: targetEnemy.maxHp,
+              attacker: player.username,
+              skill: skillId
+            });
+          }
+          
+        } else if (skillId === 'poison') {
+          // Poison: DoT effect
+          // Find nearest enemy within range
+          let targetEnemy = null;
+          let minDist = skill.range;
+          
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < skill.range && dist < minDist) {
+              minDist = dist;
+              targetEnemy = enemy;
+            }
+          });
+          
+          // If target position provided, check if there's an enemy near it
+          if (!targetEnemy && data.targetX && data.targetY) {
+            const targetX = data.targetX;
+            const targetY = data.targetY;
+            enemies.forEach((enemy, enemyId) => {
+              if (enemy.hp <= 0) return;
+              const dist = Math.sqrt(Math.pow(targetX - enemy.x, 2) + Math.pow(targetY - enemy.y, 2));
+              if (dist < 50 && dist < minDist) {
+                minDist = dist;
+                targetEnemy = enemy;
+              }
+            });
+          }
+          
+          if (targetEnemy) {
+            // Apply initial damage
+            const result = calculateDamage(player, targetEnemy, skill.damageMultiplier);
+            targetEnemy.hp -= result.damage;
+            
+            // Apply DoT
+            if (!targetEnemy.dots) targetEnemy.dots = [];
+            targetEnemy.dots.push({
+              damage: skill.dotDamage,
+              duration: skill.dotDuration,
+              startTime: now
+            });
+            
+            broadcast({
+              type: 'enemyDamaged',
+              enemyId: targetEnemy.id,
+              damage: result.damage,
+              isCrit: result.isCrit,
+              hp: targetEnemy.hp,
+              maxHp: targetEnemy.maxHp,
+              attacker: player.username,
+              skill: skillId
+            });
+          }
+          
+        } else if (skillId === 'heal') {
+          // Heal: restore HP
+          player.hp = Math.min(player.maxHp, player.hp + skill.healAmount);
+          
+          broadcast({
+            type: 'skillEffect',
+            skillId: skillId,
+            user: player.username
+          });
+          
+        } else if (skillId === 'smite') {
+          // Smite: holy damage
+          // Find nearest enemy within range
+          let targetEnemy = null;
+          let minDist = skill.range;
+          
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < skill.range && dist < minDist) {
+              minDist = dist;
+              targetEnemy = enemy;
+            }
+          });
+          
+          // If target position provided, check if there's an enemy near it
+          if (!targetEnemy && data.targetX && data.targetY) {
+            const targetX = data.targetX;
+            const targetY = data.targetY;
+            enemies.forEach((enemy, enemyId) => {
+              if (enemy.hp <= 0) return;
+              const dist = Math.sqrt(Math.pow(targetX - enemy.x, 2) + Math.pow(targetY - enemy.y, 2));
+              if (dist < 50 && dist < minDist) {
+                minDist = dist;
+                targetEnemy = enemy;
+              }
+            });
+          }
+          
+          if (targetEnemy) {
+            const result = calculateDamage(player, targetEnemy, skill.damageMultiplier);
+            targetEnemy.hp -= result.damage;
+            broadcast({
+              type: 'enemyDamaged',
+              enemyId: targetEnemy.id,
+              damage: result.damage,
+              isCrit: result.isCrit,
+              hp: targetEnemy.hp,
+              maxHp: targetEnemy.maxHp,
+              attacker: player.username,
+              skill: skillId
+            });
+          }
+          
+        } else if (skillId === 'taunt') {
+          // Taunt: force enemies to target player and gain defense bonus
+          enemies.forEach((enemy, enemyId) => {
+            if (enemy.hp <= 0) return;
+            const dist = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+            if (dist < skill.range) {
+              enemy.target = player.username;
+            }
+          });
+          
+          // Apply defense bonus
+          if (skill.defenseBonus && skill.duration) {
+            if (!playerEffects.has(ws)) {
+              playerEffects.set(ws, {});
+            }
+            const effects = playerEffects.get(ws);
+            effects.taunt = { 
+              active: true, 
+              timer: skill.duration, 
+              defenseBonus: skill.defenseBonus 
+            };
+          }
+          
+          broadcast({
+            type: 'skillEffect',
+            skillId: skillId,
+            user: player.username
+          });
+          
+        } else if (skillId === 'aura') {
+          // Protection Aura: increase defense and HP regen for nearby allies
+          if (!playerEffects.has(ws)) {
+            playerEffects.set(ws, {});
+          }
+          const effects = playerEffects.get(ws);
+          effects.aura = { 
+            active: true, 
+            timer: skill.duration, 
+            defenseBonus: skill.defenseBonus || 5,
+            hpRegenBonus: skill.hpRegenBonus || 0
+          };
+          
+          broadcast({
+            type: 'skillEffect',
+            skillId: skillId,
+            user: player.username
+          });
+        }
+        
+        // Send MP update
+        ws.send(JSON.stringify({
+          type: 'playerUpdate',
+          mp: player.mp,
+          maxMp: player.maxMp
+        }));
+      }
     } catch (error) {
       console.error('Error handling message:', error);
     }
@@ -1590,13 +2189,159 @@ function broadcast(data, excludeWs = null) {
   });
 }
 
+// Track last regeneration time
+let lastRegenTime = Date.now();
+
 // Game tick - update enemy AI and combat
 setInterval(() => {
   const now = Date.now();
   const allPlayers = Array.from(players.values());
   
+  // Regenerate MP and HP every second
+  if (now - lastRegenTime >= 1000) {
+    lastRegenTime = now;
+    
+    allPlayers.forEach(player => {
+      if (player.hp <= 0) return; // Skip dead players
+      
+      let needsUpdate = false;
+      
+      // MP regeneration: 1 MP per second, scales with INT
+      if (player.mp < player.maxMp) {
+        const mpRegen = 1 + Math.floor((player.int || 10) / 20); // 1 base + INT/20
+        player.mp = Math.min(player.maxMp, player.mp + mpRegen);
+        needsUpdate = true;
+      }
+      
+      // Check if player is near any portal for HP regeneration
+      let nearPortal = false;
+      for (let portal of PORTALS) {
+        const distance = Math.sqrt(
+          Math.pow(player.x - portal.x, 2) + Math.pow(player.y - portal.y, 2)
+        );
+        if (distance < 150) { // Regeneration range (slightly larger than interaction range)
+          nearPortal = true;
+          break;
+        }
+      }
+      
+      // Health regeneration near portals: 5 HP per second, scales with VIT
+      let hpRegen = 0;
+      if (nearPortal && player.hp < player.maxHp) {
+        hpRegen = 5 + Math.floor((player.vit || 10) / 10); // 5 base + VIT/10
+      }
+      
+      // Check for aura HP regen bonus
+      let playerWs = null;
+      players.forEach((p, ws) => {
+        if (p.username === player.username) {
+          playerWs = ws;
+        }
+      });
+      
+      if (playerWs && playerEffects.has(playerWs)) {
+        const effects = playerEffects.get(playerWs);
+        if (effects.aura && effects.aura.active) {
+          hpRegen += effects.aura.hpRegenBonus || 0;
+        }
+      }
+      
+      if (hpRegen > 0 && player.hp < player.maxHp) {
+        player.hp = Math.min(player.maxHp, player.hp + hpRegen);
+        needsUpdate = true;
+      }
+      
+      // Update effect timers
+      if (playerWs && playerEffects.has(playerWs)) {
+        const effects = playerEffects.get(playerWs);
+        let effectsUpdated = false;
+        
+        // Update shield timer
+        if (effects.shield && effects.shield.active) {
+          effects.shield.timer = Math.max(0, effects.shield.timer - 1000);
+          if (effects.shield.timer <= 0) {
+            effects.shield.active = false;
+            effectsUpdated = true;
+          }
+        }
+        
+        // Update invincibility timer
+        if (effects.invincible && effects.invincible.active) {
+          effects.invincible.timer = Math.max(0, effects.invincible.timer - 1000);
+          if (effects.invincible.timer <= 0) {
+            effects.invincible.active = false;
+            effectsUpdated = true;
+          }
+        }
+        
+        // Update taunt timer
+        if (effects.taunt && effects.taunt.active) {
+          effects.taunt.timer = Math.max(0, effects.taunt.timer - 1000);
+          if (effects.taunt.timer <= 0) {
+            effects.taunt.active = false;
+            effectsUpdated = true;
+          }
+        }
+        
+        // Update aura timer
+        if (effects.aura && effects.aura.active) {
+          effects.aura.timer = Math.max(0, effects.aura.timer - 1000);
+          if (effects.aura.timer <= 0) {
+            effects.aura.active = false;
+            effectsUpdated = true;
+          }
+        }
+      }
+      
+      // Send update if anything changed
+      if (needsUpdate) {
+        let playerWs = null;
+        players.forEach((p, ws) => {
+          if (p.username === player.username) {
+            playerWs = ws;
+          }
+        });
+        
+        if (playerWs && playerWs.readyState === WebSocket.OPEN) {
+          playerWs.send(JSON.stringify({
+            type: 'playerUpdate',
+            mp: player.mp,
+            maxMp: player.maxMp,
+            hp: player.hp,
+            maxHp: player.maxHp
+          }));
+        }
+      }
+    });
+  }
+  
   enemies.forEach((enemy, enemyId) => {
     if (enemy.hp <= 0) return; // Skip dead enemies
+    
+    // Handle DoT effects
+    if (enemy.dots && enemy.dots.length > 0) {
+      enemy.dots = enemy.dots.filter(dot => {
+        const elapsed = now - dot.startTime;
+        if (elapsed >= dot.duration) {
+          return false; // Remove expired DoT
+        }
+        
+        // Apply DoT damage every second
+        if (Math.floor(elapsed / 1000) !== Math.floor((elapsed - 16) / 1000)) {
+          enemy.hp -= dot.damage;
+          broadcast({
+            type: 'enemyDamaged',
+            enemyId: enemy.id,
+            damage: dot.damage,
+            hp: enemy.hp,
+            maxHp: enemy.maxHp,
+            isDot: true
+          });
+        }
+        
+        return true; // Keep active DoT
+      });
+    }
     
     // Find nearest player
     let nearestPlayer = null;
@@ -1639,11 +2384,7 @@ setInterval(() => {
       } else {
         // Attack player if in range
         if (now - enemy.lastAttack >= enemy.attackCooldown) {
-          const damage = calculateDamage(enemy, nearestPlayer);
-          nearestPlayer.hp = Math.max(0, nearestPlayer.hp - damage);
-          enemy.lastAttack = now;
-          
-          // Find player's WebSocket
+          // Find player's WebSocket first
           let playerWs = null;
           players.forEach((p, ws) => {
             if (p.username === nearestPlayer.username) {
@@ -1651,11 +2392,55 @@ setInterval(() => {
             }
           });
           
+          // Apply defense bonuses before damage calculation
+          let defenseBonus = 0;
+          if (playerWs && playerEffects.has(playerWs)) {
+            const effects = playerEffects.get(playerWs);
+            if (effects.taunt && effects.taunt.active) {
+              defenseBonus += effects.taunt.defenseBonus || 0;
+            }
+            if (effects.aura && effects.aura.active) {
+              defenseBonus += effects.aura.defenseBonus || 0;
+            }
+          }
+          
+          // Temporarily boost defense for damage calculation
+          const originalDef = nearestPlayer.defense || nearestPlayer.def || 0;
+          if (defenseBonus > 0) {
+            nearestPlayer.defense = originalDef + defenseBonus;
+          }
+          
+          const result = calculateDamage(enemy, nearestPlayer);
+          let finalDamage = result.damage;
+          
+          // Restore original defense
+          nearestPlayer.defense = originalDef;
+          
+          // Apply shield reduction and invincibility
+          if (playerWs && playerEffects.has(playerWs)) {
+            const effects = playerEffects.get(playerWs);
+            
+            // Invincibility frames (from dash) - complete immunity
+            if (effects.invincible && effects.invincible.active) {
+              finalDamage = 0;
+            }
+            
+            // Shield damage reduction
+            if (effects.shield && effects.shield.active && finalDamage > 0) {
+              const reduction = effects.shield.damageReduction || 0.5;
+              finalDamage = Math.floor(finalDamage * (1 - reduction));
+            }
+          }
+          
+          nearestPlayer.hp = Math.max(0, nearestPlayer.hp - finalDamage);
+          enemy.lastAttack = now;
+          
           if (playerWs) {
             // Send damage to player
             playerWs.send(JSON.stringify({
               type: 'playerDamaged',
-              damage: damage,
+              damage: finalDamage,
+              isCrit: result.isCrit,
               hp: nearestPlayer.hp,
               maxHp: nearestPlayer.maxHp,
               attacker: enemy.name
