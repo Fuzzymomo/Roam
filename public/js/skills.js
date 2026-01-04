@@ -174,7 +174,9 @@ const Skills = {
     // Initialize active effects
     this.activeEffects = {
       shield: { active: false, timer: 0 },
-      aura: { active: false, timer: 0 }
+      aura: { active: false, timer: 0 },
+      taunt: { active: false, timer: 0 },
+      invincible: { active: false, timer: 0 }
     };
   },
   
@@ -232,18 +234,14 @@ const Skills = {
       }
     }
     
-    // Update active effects
-    if (this.activeEffects.shield.active) {
-      this.activeEffects.shield.timer = Math.max(0, this.activeEffects.shield.timer - 16);
-      if (this.activeEffects.shield.timer <= 0) {
-        this.activeEffects.shield.active = false;
-      }
-    }
-    
-    if (this.activeEffects.aura.active) {
-      this.activeEffects.aura.timer = Math.max(0, this.activeEffects.aura.timer - 16);
-      if (this.activeEffects.aura.timer <= 0) {
-        this.activeEffects.aura.active = false;
+    // Update active effects (client-side sync with server)
+    // Timer updates are handled server-side, but we update locally for smooth UI
+    for (let effectName in this.activeEffects) {
+      if (this.activeEffects[effectName].active) {
+        // Server sends updates, so we just ensure we don't go negative
+        if (this.activeEffects[effectName].timer <= 0) {
+          this.activeEffects[effectName].active = false;
+        }
       }
     }
   },
@@ -317,6 +315,23 @@ const Skills = {
   getSkillByKey(key) {
     if (!this.skills) return null;
     return this.skills.find(s => s.key === key);
+  },
+  
+  /**
+   * Update active effects from server
+   */
+  updateEffects(effects) {
+    if (!effects) return;
+    
+    // Merge server effects with client effects
+    for (let effectName in effects) {
+      if (this.activeEffects.hasOwnProperty(effectName)) {
+        this.activeEffects[effectName] = {
+          active: effects[effectName].active || false,
+          timer: effects[effectName].timer || 0
+        };
+      }
+    }
   }
 };
 

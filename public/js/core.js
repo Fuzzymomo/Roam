@@ -110,6 +110,7 @@ function draw() {
   UI.drawMinimap();
   Chat.drawFloatingMessages();
   Skills.drawSkillBar();
+  UI.drawBuffsAndDebuffs();
   
   // Draw instructions
   fill(255, 200);

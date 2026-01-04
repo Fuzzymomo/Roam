@@ -139,5 +139,69 @@ const UI = {
       textSize(16);
       text(`Press E to set respawn point at ${Portal.nearPortal.town}`, GameState.canvasWidth / 2, GameState.canvasHeight - 55);
     }
+  },
+  
+  /**
+   * Draw buffs and debuffs display
+   */
+  drawBuffsAndDebuffs() {
+    if (!Skills.activeEffects) return;
+    
+    const effects = Skills.activeEffects;
+    const iconSize = 32;
+    const spacing = 5;
+    const startX = 10;
+    const startY = GameState.canvasHeight - 200;
+    let xOffset = 0;
+    
+    // Effect definitions
+    const effectDefs = {
+      shield: { name: 'Shield', icon: '🛡️', color: [100, 150, 255] },
+      aura: { name: 'Aura', icon: '🌟', color: [255, 215, 0] },
+      taunt: { name: 'Taunt', icon: '⚔️', color: [255, 100, 50] },
+      invincible: { name: 'Invincible', icon: '✨', color: [255, 255, 255] }
+    };
+    
+    // Draw each active effect
+    for (let effectName in effects) {
+      const effect = effects[effectName];
+      if (effect && effect.active && effect.timer > 0) {
+        const def = effectDefs[effectName];
+        if (!def) continue;
+        
+        const effectX = startX + xOffset;
+        const effectY = startY;
+        
+        // Background
+        fill(0, 0, 0, 200);
+        stroke(def.color[0], def.color[1], def.color[2], 200);
+        strokeWeight(2);
+        rect(effectX, effectY, iconSize, iconSize);
+        
+        // Icon
+        fill(255);
+        textAlign(CENTER);
+        textSize(20);
+        text(def.icon, effectX + iconSize / 2, effectY + iconSize / 2 + 7);
+        
+        // Timer bar
+        const maxTime = 10000; // Estimate max duration (will vary by effect)
+        const timerPercent = effect.timer / maxTime;
+        const barHeight = 4;
+        fill(50, 50, 50);
+        rect(effectX, effectY + iconSize - barHeight, iconSize, barHeight);
+        fill(def.color[0], def.color[1], def.color[2]);
+        rect(effectX, effectY + iconSize - barHeight, iconSize * Math.min(1, timerPercent), barHeight);
+        
+        // Timer text (seconds)
+        const seconds = Math.ceil(effect.timer / 1000);
+        fill(255);
+        textAlign(CENTER);
+        textSize(9);
+        text(seconds + 's', effectX + iconSize / 2, effectY + iconSize + 12);
+        
+        xOffset += iconSize + spacing;
+      }
+    }
   }
 };

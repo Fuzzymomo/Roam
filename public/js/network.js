@@ -551,6 +551,11 @@ const Network = {
       console.log('Skill used:', data.skillId, 'by', data.user);
     }
     
+    if (data.type === 'effectUpdate') {
+      // Update active effects from server
+      Skills.updateEffects(data.effects);
+    }
+    
     if (data.type === 'skillError') {
       // Show error message
       GameState.levelUpMessage = data.message;

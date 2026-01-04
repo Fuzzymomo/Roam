@@ -1925,6 +1925,14 @@ wss.on('connection', (ws) => {
             user: player.username
           });
           
+          // Send effect update to player
+          ws.send(JSON.stringify({
+            type: 'effectUpdate',
+            effects: {
+              shield: effects.shield || { active: false, timer: 0 }
+            }
+          }));
+          
         } else if (skillId === 'dash') {
           // Dash: quick movement with brief invincibility
           const targetX = data.targetX || player.x;
@@ -1945,6 +1953,14 @@ wss.on('connection', (ws) => {
               }
               const effects = playerEffects.get(ws);
               effects.invincible = { active: true, timer: skill.invincibilityDuration };
+              
+              // Send effect update to player
+              ws.send(JSON.stringify({
+                type: 'effectUpdate',
+                effects: {
+                  invincible: effects.invincible
+                }
+              }));
             }
             
             broadcast({
@@ -2136,6 +2152,14 @@ wss.on('connection', (ws) => {
             user: player.username
           });
           
+          // Send effect update to player
+          ws.send(JSON.stringify({
+            type: 'effectUpdate',
+            effects: {
+              taunt: effects.taunt || { active: false, timer: 0 }
+            }
+          }));
+          
         } else if (skillId === 'aura') {
           // Protection Aura: increase defense and HP regen for nearby allies
           if (!playerEffects.has(ws)) {
@@ -2154,6 +2178,14 @@ wss.on('connection', (ws) => {
             skillId: skillId,
             user: player.username
           });
+          
+          // Send effect update to player
+          ws.send(JSON.stringify({
+            type: 'effectUpdate',
+            effects: {
+              aura: effects.aura || { active: false, timer: 0 }
+            }
+          }));
         }
         
         // Send MP update
@@ -2252,48 +2284,75 @@ setInterval(() => {
       }
       
       // Update effect timers
+      let effectsUpdated = false;
       if (playerWs && playerEffects.has(playerWs)) {
         const effects = playerEffects.get(playerWs);
-        let effectsUpdated = false;
+        let hadActiveEffects = false;
         
         // Update shield timer
         if (effects.shield && effects.shield.active) {
+          hadActiveEffects = true;
           effects.shield.timer = Math.max(0, effects.shield.timer - 1000);
           if (effects.shield.timer <= 0) {
             effects.shield.active = false;
-            effectsUpdated = true;
           }
         }
         
         // Update invincibility timer
         if (effects.invincible && effects.invincible.active) {
+          hadActiveEffects = true;
           effects.invincible.timer = Math.max(0, effects.invincible.timer - 1000);
           if (effects.invincible.timer <= 0) {
             effects.invincible.active = false;
-            effectsUpdated = true;
           }
         }
         
         // Update taunt timer
         if (effects.taunt && effects.taunt.active) {
+          hadActiveEffects = true;
           effects.taunt.timer = Math.max(0, effects.taunt.timer - 1000);
           if (effects.taunt.timer <= 0) {
             effects.taunt.active = false;
-            effectsUpdated = true;
           }
         }
         
         // Update aura timer
         if (effects.aura && effects.aura.active) {
+          hadActiveEffects = true;
           effects.aura.timer = Math.max(0, effects.aura.timer - 1000);
           if (effects.aura.timer <= 0) {
             effects.aura.active = false;
-            effectsUpdated = true;
           }
+        }
+        
+        // Send updates whenever effects are active (to sync timers) or when they expire
+        effectsUpdated = hadActiveEffects;
+      }
+      
+      // Send effect updates if timers changed
+      if (effectsUpdated) {
+        let playerWs = null;
+        players.forEach((p, ws) => {
+          if (p.username === player.username) {
+            playerWs = ws;
+          }
+        });
+        
+        if (playerWs && playerWs.readyState === WebSocket.OPEN && playerEffects.has(playerWs)) {
+          const effects = playerEffects.get(playerWs);
+          playerWs.send(JSON.stringify({
+            type: 'effectUpdate',
+            effects: {
+              shield: effects.shield || { active: false, timer: 0 },
+              aura: effects.aura || { active: false, timer: 0 },
+              taunt: effects.taunt || { active: false, timer: 0 },
+              invincible: effects.invincible || { active: false, timer: 0 }
+            }
+          }));
         }
       }
       
-      // Send update if anything changed
+      // Send player stats update if changed
       if (needsUpdate) {
         let playerWs = null;
         players.forEach((p, ws) => {
