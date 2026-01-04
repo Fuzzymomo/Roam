@@ -1,5 +1,5 @@
 {
-  "name": "roamreal",
+  "name": "metaroam",
   "version": "1.0.0",
   "description": "Simple 2D game with login system",
   "main": "server.js",
