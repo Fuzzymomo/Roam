@@ -116,6 +116,20 @@ async function login(username) {
   }
 }
 
+// Character creation state
+let characterCreationData = {
+  username: '',
+  selectedClass: null,
+  statPoints: 20,
+  stats: {
+    str: 5,
+    dex: 5,
+    int: 5,
+    vit: 5,
+    def: 5
+  }
+};
+
 async function signup(username) {
   try {
     const response = await fetch('/api/signup', {
@@ -127,27 +141,9 @@ async function signup(username) {
     const data = await response.json();
     
     if (response.ok) {
-      player.username = data.username;
-      player.score = data.score || 0;
-      respawnX = data.respawnX || 10000;
-      respawnY = data.respawnY || 10000;
-      
-      // Load character data
-      player.characterClass = data.characterClass || 'warrior';
-      player.level = data.level || 1;
-      player.xp = data.xp || 0;
-      player.hp = data.hp || 100;
-      player.maxHp = data.maxHp || 100;
-      player.mp = data.mp || 50;
-      player.maxMp = data.maxMp || 50;
-      player.str = data.str || 10;
-      player.dex = data.dex || 10;
-      player.int = data.int || 10;
-      player.vit = data.vit || 10;
-      player.def = data.def || 10;
-      player.xpForNextLevel = getXPForLevel(player.level);
-      
-      startGame();
+      // Store username and show character creation
+      characterCreationData.username = data.username;
+      showCharacterCreation();
     } else {
       showError(data.error || 'Signup failed');
     }
@@ -155,6 +151,246 @@ async function signup(username) {
     showError('Connection error');
   }
 }
+
+// Show character creation screen
+async function showCharacterCreation() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('characterCreation').style.display = 'block';
+  
+  // Reset character creation data
+  characterCreationData.selectedClass = null;
+  characterCreationData.statPoints = 20;
+  characterCreationData.stats = {
+    str: 5,
+    dex: 5,
+    int: 5,
+    vit: 5,
+    def: 5
+  };
+  
+  // Clear error message
+  document.getElementById('charCreationError').textContent = '';
+  
+  // Load character classes
+  try {
+    const response = await fetch('/api/character-classes');
+    const data = await response.json();
+    populateClassSelection(data.classes);
+  } catch (error) {
+    console.error('Error loading classes:', error);
+  }
+  
+  populateStatAllocation();
+  updateCreateButton();
+}
+
+// Populate class selection
+function populateClassSelection(classes) {
+  const container = document.getElementById('classSelection');
+  container.innerHTML = '';
+  
+  classes.forEach(classData => {
+    const div = document.createElement('div');
+    div.className = 'class-option';
+    div.dataset.classId = classData.id;
+    div.innerHTML = `
+      <h3>${classData.name}</h3>
+      <p>${classData.description}</p>
+      <p style="font-size: 10px; margin-top: 8px;">
+        HP: ${classData.baseStats.maxHp} | MP: ${classData.baseStats.maxMp}<br>
+        STR: ${classData.baseStats.str} | DEX: ${classData.baseStats.dex} | INT: ${classData.baseStats.int}
+      </p>
+      </p>
+    `;
+    div.addEventListener('click', () => selectClass(classData.id));
+    container.appendChild(div);
+  });
+}
+
+// Select a class
+function selectClass(classId) {
+  characterCreationData.selectedClass = classId;
+  
+  // Update UI
+  document.querySelectorAll('.class-option').forEach(opt => {
+    opt.classList.remove('selected');
+  });
+  document.querySelector(`[data-class-id="${classId}"]`).classList.add('selected');
+  
+  updateCreateButton();
+}
+
+// Populate stat allocation
+function populateStatAllocation() {
+  const container = document.getElementById('statAllocation');
+  container.innerHTML = '';
+  
+  const stats = ['str', 'dex', 'int', 'vit', 'def'];
+  const statNames = {
+    str: 'Strength',
+    dex: 'Dexterity',
+    int: 'Intelligence',
+    vit: 'Vitality',
+    def: 'Defense'
+  };
+  
+  stats.forEach(stat => {
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+    row.innerHTML = `
+      <label>${statNames[stat]}:</label>
+      <button onclick="adjustStat('${stat}', -1)">-</button>
+      <span class="stat-value" id="stat-${stat}">${characterCreationData.stats[stat]}</span>
+      <button onclick="adjustStat('${stat}', 1)">+</button>
+    `;
+    container.appendChild(row);
+  });
+  
+  updateStatDisplay();
+}
+
+// Adjust stat (needs to be global for onclick)
+window.adjustStat = function(stat, change) {
+  const newValue = characterCreationData.stats[stat] + change;
+  
+  // Check constraints
+  if (change < 0 && newValue < 5) return; // Minimum 5
+  if (change > 0 && characterCreationData.statPoints <= 0) return; // No points left
+  
+  characterCreationData.stats[stat] = newValue;
+  characterCreationData.statPoints -= change;
+  
+  updateStatDisplay();
+  updateCreateButton();
+};
+
+// Update stat display
+function updateStatDisplay() {
+  document.getElementById('pointsRemaining').textContent = characterCreationData.statPoints;
+  
+  Object.keys(characterCreationData.stats).forEach(stat => {
+    document.getElementById(`stat-${stat}`).textContent = characterCreationData.stats[stat];
+  });
+  
+  // Update button states
+  document.querySelectorAll('.stat-row button').forEach(btn => {
+    const isDecrease = btn.textContent === '-';
+    const stat = btn.parentElement.querySelector('.stat-value').id.replace('stat-', '');
+    
+    if (isDecrease) {
+      btn.disabled = characterCreationData.stats[stat] <= 5;
+    } else {
+      btn.disabled = characterCreationData.statPoints <= 0;
+    }
+  });
+}
+
+// Update create button state
+function updateCreateButton() {
+  const btn = document.getElementById('createCharacterBtn');
+  const canCreate = characterCreationData.selectedClass !== null && 
+                     characterCreationData.statPoints === 0;
+  btn.disabled = !canCreate;
+}
+
+// Create character
+document.getElementById('createCharacterBtn').addEventListener('click', async () => {
+  if (characterCreationData.statPoints !== 0) {
+    document.getElementById('charCreationError').textContent = 'Please allocate all stat points!';
+    return;
+  }
+  
+  if (!characterCreationData.selectedClass) {
+    document.getElementById('charCreationError').textContent = 'Please select a class!';
+    return;
+  }
+  
+  try {
+    // Get base stats for the selected class
+    const classResponse = await fetch('/api/character-classes');
+    const classData = await classResponse.json();
+    const selectedClassData = classData.classes.find(c => c.id === characterCreationData.selectedClass);
+    
+    // Calculate final stats (base stats + allocated points)
+    // Allocated points start at 5, so we add the difference
+    const allocatedPoints = {
+      str: characterCreationData.stats.str - 5,
+      dex: characterCreationData.stats.dex - 5,
+      int: characterCreationData.stats.int - 5,
+      vit: characterCreationData.stats.vit - 5,
+      def: characterCreationData.stats.def - 5
+    };
+    
+    const finalStats = {
+      str: selectedClassData.baseStats.str + allocatedPoints.str,
+      dex: selectedClassData.baseStats.dex + allocatedPoints.dex,
+      int: selectedClassData.baseStats.int + allocatedPoints.int,
+      vit: selectedClassData.baseStats.vit + allocatedPoints.vit,
+      def: selectedClassData.baseStats.def + allocatedPoints.def
+    };
+    
+    // Calculate HP/MP based on VIT and INT
+    const baseHp = selectedClassData.baseStats.maxHp;
+    const baseMp = selectedClassData.baseStats.maxMp;
+    const hpBonus = allocatedPoints.vit * 5; // Each VIT point adds 5 HP
+    const mpBonus = allocatedPoints.int * 3; // Each INT point adds 3 MP
+    
+    const characterData = {
+      characterClass: characterCreationData.selectedClass,
+      level: 1,
+      xp: 0,
+      hp: baseHp + hpBonus,
+      maxHp: baseHp + hpBonus,
+      mp: baseMp + mpBonus,
+      maxMp: baseMp + mpBonus,
+      str: finalStats.str,
+      dex: finalStats.dex,
+      int: finalStats.int,
+      vit: finalStats.vit,
+      def: finalStats.def
+    };
+    
+    // Update character on server
+    const response = await fetch('/api/update-character', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: characterCreationData.username,
+        characterData: characterData
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Load character data and start game
+      player.username = characterCreationData.username;
+      player.score = 0;
+      respawnX = 10000;
+      respawnY = 10000;
+      player.characterClass = characterData.characterClass;
+      player.level = characterData.level;
+      player.xp = characterData.xp;
+      player.hp = characterData.hp;
+      player.maxHp = characterData.maxHp;
+      player.mp = characterData.mp;
+      player.maxMp = characterData.maxMp;
+      player.str = characterData.str;
+      player.dex = characterData.dex;
+      player.int = characterData.int;
+      player.vit = characterData.vit;
+      player.def = characterData.def;
+      player.xpForNextLevel = getXPForLevel(player.level);
+      
+      document.getElementById('characterCreation').style.display = 'none';
+      startGame();
+    } else {
+      document.getElementById('charCreationError').textContent = data.error || 'Failed to create character';
+    }
+  } catch (error) {
+    document.getElementById('charCreationError').textContent = 'Connection error';
+  }
+});
 
 function showError(message) {
   document.getElementById('errorMsg').textContent = message;

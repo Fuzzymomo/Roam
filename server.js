@@ -257,28 +257,25 @@ app.post('/api/signup', async (req, res) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
-    // Add new account with default character (warrior, level 1)
-    const defaultClass = 'warrior';
-    const baseStats = CHARACTER_CLASSES[defaultClass].baseStats;
-    const stats = calculateStatsForLevel(baseStats, 1);
-    
+    // Add new account without character (character will be created via character creation)
+    // Set temporary defaults that will be overwritten
     accounts.push({ 
       username, 
       score: 0,
       respawnX: SPAWN_X,
       respawnY: SPAWN_Y,
-      characterClass: defaultClass,
+      characterClass: 'warrior', // Temporary, will be updated
       level: 1,
       xp: 0,
-      hp: stats.maxHp,
-      maxHp: stats.maxHp,
-      mp: stats.maxMp,
-      maxMp: stats.maxMp,
-      str: stats.str,
-      dex: stats.dex,
-      int: stats.int,
-      vit: stats.vit,
-      def: stats.def
+      hp: 100,
+      maxHp: 100,
+      mp: 50,
+      maxMp: 50,
+      str: 10,
+      dex: 10,
+      int: 10,
+      vit: 10,
+      def: 10
     });
     await writeAccounts(accounts);
     
@@ -287,11 +284,8 @@ app.post('/api/signup', async (req, res) => {
       username, 
       score: 0,
       respawnX: SPAWN_X,
-      respawnY: SPAWN_Y,
-      characterClass: defaultClass,
-      level: 1,
-      xp: 0,
-      ...stats
+      respawnY: SPAWN_Y
+      // Character data will be set via character creation
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
