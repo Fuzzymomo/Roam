@@ -1,8 +1,8 @@
 let socket;
 let player = {
   username: '',
-  x: 1000,
-  y: 1000,
+  x: 10000,
+  y: 10000,
   score: 0,
   size: 20
 };
@@ -11,9 +11,9 @@ let orbs = [];
 let keys = {};
 let loggedIn = false;
 
-// World and camera configuration
-let worldWidth = 2000;
-let worldHeight = 2000;
+// World and camera configuration - MMO scale
+let worldWidth = 20000;
+let worldHeight = 20000;
 let camera = {
   x: 0,
   y: 0
@@ -469,7 +469,8 @@ function drawWorldGrid() {
   stroke(gridColor[0], gridColor[1], gridColor[2], 80);
   strokeWeight(1);
   
-  const gridSize = 100;
+  // Larger grid size for larger world
+  const gridSize = 500;
   const startX = Math.floor(camera.x / gridSize) * gridSize;
   const startY = Math.floor(camera.y / gridSize) * gridSize;
   

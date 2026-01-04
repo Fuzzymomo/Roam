@@ -147,23 +147,24 @@ const server = app.listen(PORT, () => {
 
 const wss = new WebSocket.Server({ server });
 
-// World configuration
-const WORLD_WIDTH = 2000;
-const WORLD_HEIGHT = 2000;
+// World configuration - MMO scale
+const WORLD_WIDTH = 20000;
+const WORLD_HEIGHT = 20000;
 const SPAWN_X = WORLD_WIDTH / 2;
 const SPAWN_Y = WORLD_HEIGHT / 2;
 
-// Zone definitions - 4 towns with connecting wilderness areas
+// Zone definitions - 4 towns with connecting wilderness areas (scaled for MMO)
+// World is 20,000x20,000, so zones are scaled 10x from original 2000x2000 world
 const ZONES = [
   // North Town - Forest/Mountain Theme
   {
     id: 'north_town',
     name: 'Northwood',
     type: 'town',
-    x: 200,
-    y: 200,
-    width: 300,
-    height: 300,
+    x: 2000,
+    y: 2000,
+    width: 3000,
+    height: 3000,
     theme: {
       bgColor: [30, 60, 40],
       gridColor: [50, 80, 60],
@@ -175,10 +176,10 @@ const ZONES = [
     id: 'south_town',
     name: 'Sandhaven',
     type: 'town',
-    x: 1500,
-    y: 1500,
-    width: 300,
-    height: 300,
+    x: 15000,
+    y: 15000,
+    width: 3000,
+    height: 3000,
     theme: {
       bgColor: [80, 70, 50],
       gridColor: [100, 90, 70],
@@ -190,10 +191,10 @@ const ZONES = [
     id: 'east_town',
     name: 'Seabreeze',
     type: 'town',
-    x: 1500,
-    y: 200,
-    width: 300,
-    height: 300,
+    x: 15000,
+    y: 2000,
+    width: 3000,
+    height: 3000,
     theme: {
       bgColor: [30, 50, 70],
       gridColor: [50, 70, 90],
@@ -205,10 +206,10 @@ const ZONES = [
     id: 'west_town',
     name: 'Frosthold',
     type: 'town',
-    x: 200,
-    y: 1500,
-    width: 300,
-    height: 300,
+    x: 2000,
+    y: 15000,
+    width: 3000,
+    height: 3000,
     theme: {
       bgColor: [60, 70, 80],
       gridColor: [80, 90, 100],
@@ -220,70 +221,70 @@ const ZONES = [
     id: 'central_wilderness',
     name: 'Central Plains',
     type: 'wilderness',
-    x: 500,
-    y: 500,
-    width: 1000,
-    height: 1000,
+    x: 5000,
+    y: 5000,
+    width: 10000,
+    height: 10000,
     theme: {
       bgColor: [25, 35, 30],
       gridColor: [40, 50, 45],
       borderColor: [60, 70, 65]
     }
   },
-  // North-South Road
+  // North-South Road (West side)
   {
-    id: 'north_south_road',
+    id: 'north_south_road_west',
     name: 'Northern Path',
     type: 'road',
-    x: 200,
-    y: 500,
-    width: 300,
-    height: 1000,
+    x: 2000,
+    y: 5000,
+    width: 3000,
+    height: 10000,
     theme: {
       bgColor: [35, 40, 35],
       gridColor: [50, 55, 50],
       borderColor: [80, 85, 80]
     }
   },
-  // East-West Road
+  // East-West Road (North side)
   {
-    id: 'east_west_road',
+    id: 'east_west_road_north',
     name: 'Eastern Path',
     type: 'road',
-    x: 500,
-    y: 200,
-    width: 1000,
-    height: 300,
+    x: 5000,
+    y: 2000,
+    width: 10000,
+    height: 3000,
     theme: {
       bgColor: [35, 40, 35],
       gridColor: [50, 55, 50],
       borderColor: [80, 85, 80]
     }
   },
-  // South-East Road
+  // North-South Road (East side)
   {
-    id: 'south_east_road',
+    id: 'north_south_road_east',
     name: 'Southern Path',
     type: 'road',
-    x: 1500,
-    y: 500,
-    width: 300,
-    height: 1000,
+    x: 15000,
+    y: 5000,
+    width: 3000,
+    height: 10000,
     theme: {
       bgColor: [35, 40, 35],
       gridColor: [50, 55, 50],
       borderColor: [80, 85, 80]
     }
   },
-  // South-West Road
+  // East-West Road (South side)
   {
-    id: 'south_west_road',
+    id: 'east_west_road_south',
     name: 'Western Path',
     type: 'road',
-    x: 500,
-    y: 1500,
-    width: 1000,
-    height: 300,
+    x: 5000,
+    y: 15000,
+    width: 10000,
+    height: 3000,
     theme: {
       bgColor: [35, 40, 35],
       gridColor: [50, 55, 50],
@@ -296,9 +297,9 @@ const ZONES = [
 const players = new Map();
 const orbs = [];
 
-// Generate initial orbs
+// Generate initial orbs - more orbs for larger world
 function generateOrbs() {
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 200; i++) {
     orbs.push({
       id: i,
       x: Math.random() * WORLD_WIDTH,
