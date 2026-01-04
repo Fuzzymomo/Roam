@@ -565,9 +565,67 @@ const ZONES = [
   }
 ];
 
+// Enemy types
+const ENEMY_TYPES = {
+  goblin: {
+    name: 'Goblin',
+    level: 1,
+    hp: 50,
+    maxHp: 50,
+    damage: 5,
+    defense: 2,
+    xpReward: 25,
+    goldReward: 5,
+    speed: 1.5,
+    attackRange: 40,
+    color: [100, 150, 100]
+  },
+  orc: {
+    name: 'Orc',
+    level: 3,
+    hp: 120,
+    maxHp: 120,
+    damage: 12,
+    defense: 5,
+    xpReward: 50,
+    goldReward: 10,
+    speed: 1.2,
+    attackRange: 45,
+    color: [150, 100, 100]
+  },
+  skeleton: {
+    name: 'Skeleton',
+    level: 2,
+    hp: 80,
+    maxHp: 80,
+    damage: 8,
+    defense: 3,
+    xpReward: 35,
+    goldReward: 7,
+    speed: 1.8,
+    attackRange: 40,
+    color: [200, 200, 200]
+  },
+  wolf: {
+    name: 'Wolf',
+    level: 1,
+    hp: 40,
+    maxHp: 40,
+    damage: 6,
+    defense: 1,
+    xpReward: 20,
+    goldReward: 4,
+    speed: 2.5,
+    attackRange: 35,
+    color: [100, 100, 150]
+  }
+};
+
 // Store connected players
 const players = new Map();
 const orbs = [];
+const enemies = new Map(); // Map of enemy ID to enemy object
+let nextEnemyId = 0;
 
 // Generate initial orbs - more orbs for larger world
 function generateOrbs() {
@@ -582,6 +640,72 @@ function generateOrbs() {
 }
 
 generateOrbs();
+spawnEnemies();
+
+// Spawn enemies in the world
+function spawnEnemies() {
+  const enemyCount = 100; // Total enemies in the world
+  
+  for (let i = 0; i < enemyCount; i++) {
+    const enemyTypes = Object.keys(ENEMY_TYPES);
+    const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+    const enemyType = ENEMY_TYPES[randomType];
+    
+    // Spawn in wilderness areas (not in towns)
+    let x, y;
+    do {
+      x = Math.random() * WORLD_WIDTH;
+      y = Math.random() * WORLD_HEIGHT;
+    } while (isInTown(x, y));
+    
+    const enemyId = nextEnemyId++;
+    enemies.set(enemyId, {
+      id: enemyId,
+      type: randomType,
+      name: enemyType.name,
+      x: x,
+      y: y,
+      hp: enemyType.maxHp,
+      maxHp: enemyType.maxHp,
+      damage: enemyType.damage,
+      defense: enemyType.defense,
+      xpReward: enemyType.xpReward,
+      goldReward: enemyType.goldReward,
+      speed: enemyType.speed,
+      attackRange: enemyType.attackRange,
+      color: enemyType.color,
+      target: null,
+      lastAttack: 0,
+      attackCooldown: 1000 // 1 second
+    });
+  }
+}
+
+// Check if coordinates are in a town
+function isInTown(x, y) {
+  for (let zone of ZONES) {
+    if (zone.type === 'town' && 
+        x >= zone.x && x <= zone.x + zone.width &&
+        y >= zone.y && y <= zone.y + zone.height) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Calculate damage
+function calculateDamage(attacker, defender) {
+  let baseDamage = attacker.damage || attacker.str || 10;
+  let defense = defender.defense || defender.def || 0;
+  
+  // Damage = base damage - defense (minimum 1)
+  let damage = Math.max(1, baseDamage - defense);
+  
+  // Add some randomness (80-120% of base damage)
+  damage = Math.floor(damage * (0.8 + Math.random() * 0.4));
+  
+  return damage;
+}
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
@@ -633,6 +757,7 @@ wss.on('connection', (ws) => {
           type: 'gameState',
           players: Array.from(players.values()),
           orbs: orbs.filter(o => !o.collected),
+          enemies: Array.from(enemies.values()),
           worldWidth: WORLD_WIDTH,
           worldHeight: WORLD_HEIGHT,
           zones: ZONES,
@@ -802,6 +927,148 @@ wss.on('connection', (ws) => {
           }
         }
       }
+      
+      if (data.type === 'attackEnemy') {
+        const player = players.get(ws);
+        if (player) {
+          const enemy = enemies.get(data.enemyId);
+          if (enemy && enemy.hp > 0) {
+            // Check if player is in range
+            const distance = Math.sqrt(
+              Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2)
+            );
+            
+            if (distance < 50) { // Attack range
+              // Calculate damage
+              const damage = calculateDamage(player, enemy);
+              enemy.hp -= damage;
+              
+              // Broadcast damage
+              broadcast({
+                type: 'enemyDamaged',
+                enemyId: enemy.id,
+                damage: damage,
+                hp: enemy.hp,
+                maxHp: enemy.maxHp,
+                attacker: player.username
+              });
+              
+              // Check if enemy is dead
+              if (enemy.hp <= 0) {
+                // Give XP and rewards
+                try {
+                  const accounts = await readAccounts();
+                  const account = accounts.find(acc => acc.username === player.username);
+                  if (account) {
+                    account.xp += enemy.xpReward;
+                    account.score += enemy.goldReward;
+                    
+                    // Check for level up
+                    let leveledUp = false;
+                    while (account.xp >= getXPForLevel(account.level)) {
+                      account.xp -= getXPForLevel(account.level);
+                      account.level += 1;
+                      leveledUp = true;
+                      
+                      const baseStats = CHARACTER_CLASSES[account.characterClass]?.baseStats || CHARACTER_CLASSES.warrior.baseStats;
+                      const newStats = calculateStatsForLevel(baseStats, account.level);
+                      
+                      const hpPercent = account.hp / account.maxHp;
+                      const mpPercent = account.mp / account.maxMp;
+                      
+                      account.maxHp = newStats.maxHp;
+                      account.hp = Math.floor(account.maxHp * hpPercent);
+                      account.maxMp = newStats.maxMp;
+                      account.mp = Math.floor(account.maxMp * mpPercent);
+                      account.str = newStats.str;
+                      account.dex = newStats.dex;
+                      account.int = newStats.int;
+                      account.vit = newStats.vit;
+                      account.def = newStats.def;
+                    }
+                    
+                    await writeAccounts(accounts);
+                    
+                    // Update player object
+                    player.score = account.score;
+                    player.xp = account.xp;
+                    player.level = account.level;
+                    
+                    if (leveledUp) {
+                      ws.send(JSON.stringify({
+                        type: 'levelUp',
+                        level: account.level,
+                        stats: {
+                          hp: account.hp,
+                          maxHp: account.maxHp,
+                          mp: account.mp,
+                          maxMp: account.maxMp,
+                          str: account.str,
+                          dex: account.dex,
+                          int: account.int,
+                          vit: account.vit,
+                          def: account.def
+                        }
+                      }));
+                    }
+                    
+                    ws.send(JSON.stringify({
+                      type: 'characterUpdate',
+                      xp: account.xp,
+                      xpForNextLevel: getXPForLevel(account.level),
+                      level: account.level
+                    }));
+                  }
+                } catch (error) {
+                  console.error('Error updating account:', error);
+                }
+                
+                // Broadcast enemy death
+                broadcast({
+                  type: 'enemyKilled',
+                  enemyId: enemy.id,
+                  xpReward: enemy.xpReward,
+                  goldReward: enemy.goldReward,
+                  killer: player.username
+                });
+                
+                // Respawn enemy after delay
+                setTimeout(() => {
+                  const enemyTypes = Object.keys(ENEMY_TYPES);
+                  const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+                  const enemyType = ENEMY_TYPES[randomType];
+                  
+                  let x, y;
+                  do {
+                    x = Math.random() * WORLD_WIDTH;
+                    y = Math.random() * WORLD_HEIGHT;
+                  } while (isInTown(x, y));
+                  
+                  enemy.type = randomType;
+                  enemy.name = enemyType.name;
+                  enemy.x = x;
+                  enemy.y = y;
+                  enemy.hp = enemyType.maxHp;
+                  enemy.maxHp = enemyType.maxHp;
+                  enemy.damage = enemyType.damage;
+                  enemy.defense = enemyType.defense;
+                  enemy.xpReward = enemyType.xpReward;
+                  enemy.goldReward = enemyType.goldReward;
+                  enemy.speed = enemyType.speed;
+                  enemy.attackRange = enemyType.attackRange;
+                  enemy.color = enemyType.color;
+                  enemy.target = null;
+                  
+                  broadcast({
+                    type: 'enemyRespawn',
+                    enemy: enemy
+                  });
+                }, 10000); // Respawn after 10 seconds
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Error handling message:', error);
     }
@@ -827,4 +1094,115 @@ function broadcast(data, excludeWs = null) {
     }
   });
 }
+
+// Game tick - update enemy AI and combat
+setInterval(() => {
+  const now = Date.now();
+  const allPlayers = Array.from(players.values());
+  
+  enemies.forEach((enemy, enemyId) => {
+    if (enemy.hp <= 0) return; // Skip dead enemies
+    
+    // Find nearest player
+    let nearestPlayer = null;
+    let nearestDistance = Infinity;
+    
+    allPlayers.forEach(player => {
+      if (player.hp <= 0) return; // Skip dead players
+      
+      const distance = Math.sqrt(
+        Math.pow(enemy.x - player.x, 2) + Math.pow(enemy.y - player.y, 2)
+      );
+      
+      if (distance < 300 && distance < nearestDistance) { // Aggro range
+        nearestDistance = distance;
+        nearestPlayer = player;
+      }
+    });
+    
+    if (nearestPlayer) {
+      enemy.target = nearestPlayer.username;
+      
+      // Move towards player
+      const dx = nearestPlayer.x - enemy.x;
+      const dy = nearestPlayer.y - enemy.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance > enemy.attackRange) {
+        // Move towards player
+        const moveSpeed = enemy.speed;
+        enemy.x += (dx / distance) * moveSpeed;
+        enemy.y += (dy / distance) * moveSpeed;
+        
+        // Broadcast enemy movement
+        broadcast({
+          type: 'enemyMove',
+          enemyId: enemy.id,
+          x: enemy.x,
+          y: enemy.y
+        });
+      } else {
+        // Attack player if in range
+        if (now - enemy.lastAttack >= enemy.attackCooldown) {
+          const damage = calculateDamage(enemy, nearestPlayer);
+          nearestPlayer.hp = Math.max(0, nearestPlayer.hp - damage);
+          enemy.lastAttack = now;
+          
+          // Find player's WebSocket
+          let playerWs = null;
+          players.forEach((p, ws) => {
+            if (p.username === nearestPlayer.username) {
+              playerWs = ws;
+            }
+          });
+          
+          if (playerWs) {
+            // Send damage to player
+            playerWs.send(JSON.stringify({
+              type: 'playerDamaged',
+              damage: damage,
+              hp: nearestPlayer.hp,
+              maxHp: nearestPlayer.maxHp,
+              attacker: enemy.name
+            }));
+            
+            // Check if player is dead
+            if (nearestPlayer.hp <= 0) {
+              // Respawn player at respawn point
+              (async () => {
+                try {
+                  const accounts = await readAccounts();
+                  const account = accounts.find(acc => acc.username === nearestPlayer.username);
+                  if (account) {
+                    nearestPlayer.x = account.respawnX || SPAWN_X;
+                    nearestPlayer.y = account.respawnY || SPAWN_Y;
+                    nearestPlayer.hp = nearestPlayer.maxHp;
+                    nearestPlayer.mp = nearestPlayer.maxMp;
+                    
+                    playerWs.send(JSON.stringify({
+                      type: 'playerDeath',
+                      respawnX: nearestPlayer.x,
+                      respawnY: nearestPlayer.y
+                    }));
+                    
+                    broadcast({
+                      type: 'playerRespawn',
+                      username: nearestPlayer.username,
+                      x: nearestPlayer.x,
+                      y: nearestPlayer.y
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error handling player death:', error);
+                }
+              })();
+            }
+          }
+        }
+      }
+    } else {
+      enemy.target = null;
+    }
+  });
+}, 100); // Update every 100ms
 

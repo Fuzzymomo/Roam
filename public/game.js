@@ -22,11 +22,16 @@ let player = {
 };
 let otherPlayers = [];
 let orbs = [];
+let enemies = [];
 let keys = {};
 let loggedIn = false;
 let showCharacterSheet = false;
 let levelUpMessage = '';
 let levelUpTimer = 0;
+let lastAttackTime = 0;
+let attackCooldown = 500; // 0.5 seconds
+let damageNumbers = []; // Array of {x, y, damage, timer}
+let playerAttackCooldown = 0;
 
 // World and camera configuration - MMO scale
 let worldWidth = 20000;
@@ -440,6 +445,11 @@ function startGame() {
         portals = data.portals;
       }
       
+      // Update enemies if provided
+      if (data.enemies) {
+        enemies = data.enemies;
+      }
+      
       // Set player position from server
       const serverPlayer = data.players.find(p => p.username === player.username);
       if (serverPlayer) {
@@ -517,6 +527,89 @@ function startGame() {
     if (data.type === 'orbRespawn') {
       orbs.push(data.orb);
     }
+    
+    if (data.type === 'enemyMove') {
+      const enemy = enemies.find(e => e.id === data.enemyId);
+      if (enemy) {
+        enemy.x = data.x;
+        enemy.y = data.y;
+      }
+    }
+    
+    if (data.type === 'enemyDamaged') {
+      const enemy = enemies.find(e => e.id === data.enemyId);
+      if (enemy) {
+        enemy.hp = data.hp;
+        enemy.maxHp = data.maxHp;
+        
+        // Show damage number
+        if (data.attacker === player.username) {
+          const screenPos = worldToScreen(enemy.x, enemy.y);
+          damageNumbers.push({
+            x: screenPos.x,
+            y: screenPos.y - 20,
+            damage: data.damage,
+            timer: 60,
+            color: [255, 100, 100]
+          });
+        }
+      }
+    }
+    
+    if (data.type === 'enemyKilled') {
+      enemies = enemies.filter(e => e.id !== data.enemyId);
+      
+      if (data.killer === player.username) {
+        // Show kill notification
+        levelUpMessage = `Killed ${data.xpReward} XP, ${data.goldReward} Gold!`;
+        levelUpTimer = 120;
+      }
+    }
+    
+    if (data.type === 'enemyRespawn') {
+      const existingIndex = enemies.findIndex(e => e.id === data.enemy.id);
+      if (existingIndex >= 0) {
+        enemies[existingIndex] = data.enemy;
+      } else {
+        enemies.push(data.enemy);
+      }
+    }
+    
+    if (data.type === 'playerDamaged') {
+      player.hp = data.hp;
+      player.maxHp = data.maxHp;
+      updateCharacterDisplay();
+      
+      // Show damage number on player
+      const screenPos = worldToScreen(player.x, player.y);
+      damageNumbers.push({
+        x: screenPos.x,
+        y: screenPos.y - 20,
+        damage: data.damage,
+        timer: 60,
+        color: [255, 50, 50]
+      });
+    }
+    
+    if (data.type === 'playerDeath') {
+      player.x = data.respawnX;
+      player.y = data.respawnY;
+      player.hp = player.maxHp;
+      player.mp = player.maxMp;
+      updateCamera();
+      updateCharacterDisplay();
+      
+      levelUpMessage = 'You have died! Respawned at your respawn point.';
+      levelUpTimer = 180;
+    }
+    
+    if (data.type === 'playerRespawn') {
+      const otherPlayer = otherPlayers.find(p => p.username === data.username);
+      if (otherPlayer) {
+        otherPlayer.x = data.x;
+        otherPlayer.y = data.y;
+      }
+    }
   };
   
   // Keyboard handlers
@@ -537,6 +630,8 @@ function startGame() {
       showCharacterSheet = !showCharacterSheet;
     }
   });
+  
+  // Mouse click handler for attacking (will be called from p5.js mousePressed)
   
   window.addEventListener('keyup', (e) => {
     keys[e.key.toLowerCase()] = false;
@@ -700,6 +795,9 @@ function draw() {
   // Draw portals (before orbs so they're visible)
   drawPortals();
   
+  // Draw enemies
+  drawEnemies();
+  
   // Draw orbs (only those visible on screen)
   for (let orb of orbs) {
     const screenPos = worldToScreen(orb.x, orb.y);
@@ -745,12 +843,17 @@ function draw() {
   
   // Draw current player (always centered)
   const playerScreenPos = worldToScreen(player.x, player.y);
-  fill(50, 200, 100);
-  ellipse(playerScreenPos.x, playerScreenPos.y, player.size, player.size);
-  fill(255);
-  textAlign(CENTER);
-  textSize(10);
-  text(player.username, playerScreenPos.x, playerScreenPos.y - player.size - 5);
+  if (player.hp > 0) {
+    fill(50, 200, 100);
+    ellipse(playerScreenPos.x, playerScreenPos.y, player.size, player.size);
+    fill(255);
+    textAlign(CENTER);
+    textSize(10);
+    text(player.username, playerScreenPos.x, playerScreenPos.y - player.size - 5);
+  }
+  
+  // Draw damage numbers
+  drawDamageNumbers();
   
   // Draw world boundaries (if camera is near edge)
   drawWorldBoundaries();
@@ -779,8 +882,101 @@ function draw() {
   fill(255, 200);
   textAlign(LEFT);
   textSize(12);
-  text('WASD to move | C - Character Sheet', 10, canvasHeight - 30);
+  text('WASD to move | C - Character Sheet | Click to attack enemies', 10, canvasHeight - 30);
   text('Collect orbs to earn points and XP!', 10, canvasHeight - 15);
+}
+
+// Draw enemies
+function drawEnemies() {
+  for (let enemy of enemies) {
+    if (enemy.hp <= 0) continue;
+    
+    const screenPos = worldToScreen(enemy.x, enemy.y);
+    
+    // Only draw if enemy is visible on screen
+    if (screenPos.x > -50 && screenPos.x < canvasWidth + 50 &&
+        screenPos.y > -50 && screenPos.y < canvasHeight + 50) {
+      
+      // Draw enemy
+      fill(enemy.color[0], enemy.color[1], enemy.color[2]);
+      ellipse(screenPos.x, screenPos.y, 25, 25);
+      
+      // Draw enemy name
+      fill(255);
+      textAlign(CENTER);
+      textSize(10);
+      text(enemy.name, screenPos.x, screenPos.y - 20);
+      
+      // Draw health bar
+      const barWidth = 40;
+      const barHeight = 4;
+      const hpPercent = enemy.hp / enemy.maxHp;
+      
+      // Background
+      fill(50, 50, 50);
+      rect(screenPos.x - barWidth / 2, screenPos.y + 18, barWidth, barHeight);
+      
+      // Health
+      fill(255, 0, 0);
+      rect(screenPos.x - barWidth / 2, screenPos.y + 18, barWidth * hpPercent, barHeight);
+    }
+  }
+}
+
+// Draw damage numbers
+function drawDamageNumbers() {
+  for (let i = damageNumbers.length - 1; i >= 0; i--) {
+    const dmg = damageNumbers[i];
+    dmg.timer--;
+    dmg.y -= 1; // Float upward
+    
+    if (dmg.timer <= 0) {
+      damageNumbers.splice(i, 1);
+      continue;
+    }
+    
+    const alpha = map(dmg.timer, 0, 60, 0, 255);
+    fill(dmg.color[0], dmg.color[1], dmg.color[2], alpha);
+    textAlign(CENTER);
+    textSize(16);
+    textStyle(BOLD);
+    text(`-${dmg.damage}`, dmg.x, dmg.y);
+    textStyle(NORMAL);
+  }
+}
+
+// p5.js mouse pressed handler
+function mousePressed() {
+  if (!loggedIn || player.hp <= 0) return;
+  
+  const now = Date.now();
+  if (now - lastAttackTime < attackCooldown) return;
+  
+  // Get mouse position in world coordinates
+  const worldMouseX = mouseX + camera.x;
+  const worldMouseY = mouseY + camera.y;
+  
+  // Find nearest enemy within attack range
+  let nearestEnemy = null;
+  let nearestDistance = Infinity;
+  
+  enemies.forEach(enemy => {
+    if (enemy.hp <= 0) return;
+    
+    const distance = dist(player.x, player.y, enemy.x, enemy.y);
+    if (distance < 50 && distance < nearestDistance) { // Attack range
+      nearestDistance = distance;
+      nearestEnemy = enemy;
+    }
+  });
+  
+  if (nearestEnemy && socket && socket.readyState === WebSocket.OPEN) {
+    lastAttackTime = now;
+    socket.send(JSON.stringify({
+      type: 'attackEnemy',
+      enemyId: nearestEnemy.id
+    }));
+  }
 }
 
 // Draw portals
