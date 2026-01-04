@@ -26,7 +26,9 @@ if (!fs.existsSync(accountsFile)) {
     path: accountsFile,
     header: [
       { id: 'username', title: 'username' },
-      { id: 'score', title: 'score' }
+      { id: 'score', title: 'score' },
+      { id: 'respawnX', title: 'respawnX' },
+      { id: 'respawnY', title: 'respawnY' }
     ]
   });
   csvWriter.writeRecords([]);
@@ -41,7 +43,9 @@ function readAccounts() {
       .on('data', (row) => {
         accounts.push({
           username: row.username,
-          score: parseInt(row.score) || 0
+          score: parseInt(row.score) || 0,
+          respawnX: parseFloat(row.respawnX) || SPAWN_X,
+          respawnY: parseFloat(row.respawnY) || SPAWN_Y
         });
       })
       .on('end', () => {
@@ -58,7 +62,9 @@ function writeAccounts(accounts) {
       path: accountsFile,
       header: [
         { id: 'username', title: 'username' },
-        { id: 'score', title: 'score' }
+        { id: 'score', title: 'score' },
+        { id: 'respawnX', title: 'respawnX' },
+        { id: 'respawnY', title: 'respawnY' }
       ]
     });
     csvWriter.writeRecords(accounts)
@@ -80,7 +86,13 @@ app.post('/api/login', async (req, res) => {
     const account = accounts.find(acc => acc.username === username);
     
     if (account) {
-      res.json({ success: true, username: account.username, score: account.score });
+      res.json({ 
+        success: true, 
+        username: account.username, 
+        score: account.score,
+        respawnX: account.respawnX || SPAWN_X,
+        respawnY: account.respawnY || SPAWN_Y
+      });
     } else {
       res.status(404).json({ error: 'User not found' });
     }
@@ -105,11 +117,22 @@ app.post('/api/signup', async (req, res) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
-    // Add new account
-    accounts.push({ username, score: 0 });
+    // Add new account with default respawn at center
+    accounts.push({ 
+      username, 
+      score: 0,
+      respawnX: SPAWN_X,
+      respawnY: SPAWN_Y
+    });
     await writeAccounts(accounts);
     
-    res.json({ success: true, username, score: 0 });
+    res.json({ 
+      success: true, 
+      username, 
+      score: 0,
+      respawnX: SPAWN_X,
+      respawnY: SPAWN_Y
+    });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -140,6 +163,32 @@ app.post('/api/update-score', async (req, res) => {
   }
 });
 
+// Update respawn point endpoint
+app.post('/api/update-respawn', async (req, res) => {
+  const { username, respawnX, respawnY } = req.body;
+  
+  if (!username || respawnX === undefined || respawnY === undefined) {
+    return res.status(400).json({ error: 'Username and respawn coordinates are required' });
+  }
+
+  try {
+    const accounts = await readAccounts();
+    const account = accounts.find(acc => acc.username === username);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    account.respawnX = respawnX;
+    account.respawnY = respawnY;
+    await writeAccounts(accounts);
+    
+    res.json({ success: true, username, respawnX, respawnY });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // WebSocket server for real-time game updates
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
@@ -152,6 +201,38 @@ const WORLD_WIDTH = 20000;
 const WORLD_HEIGHT = 20000;
 const SPAWN_X = WORLD_WIDTH / 2;
 const SPAWN_Y = WORLD_HEIGHT / 2;
+
+// Portal locations - one in each town (centered in each town)
+const PORTALS = [
+  {
+    id: 'northwood_portal',
+    name: 'Northwood Portal',
+    x: 3500, // Center of Northwood (2000 + 3000/2)
+    y: 3500,
+    town: 'Northwood'
+  },
+  {
+    id: 'sandhaven_portal',
+    name: 'Sandhaven Portal',
+    x: 16500, // Center of Sandhaven (15000 + 3000/2)
+    y: 16500,
+    town: 'Sandhaven'
+  },
+  {
+    id: 'seabreeze_portal',
+    name: 'Seabreeze Portal',
+    x: 16500, // Center of Seabreeze
+    y: 3500,
+    town: 'Seabreeze'
+  },
+  {
+    id: 'frosthold_portal',
+    name: 'Frosthold Portal',
+    x: 3500, // Center of Frosthold
+    y: 16500,
+    town: 'Frosthold'
+  }
+];
 
 // Zone definitions - 4 towns with connecting wilderness areas (scaled for MMO)
 // World is 20,000x20,000, so zones are scaled 10x from original 2000x2000 world
@@ -319,10 +400,14 @@ wss.on('connection', (ws) => {
       const data = JSON.parse(message);
       
       if (data.type === 'join') {
+        // Use respawn point if provided, otherwise use default spawn
+        const spawnX = data.respawnX || SPAWN_X;
+        const spawnY = data.respawnY || SPAWN_Y;
+        
         players.set(ws, {
           username: data.username,
-          x: SPAWN_X,
-          y: SPAWN_Y,
+          x: spawnX,
+          y: spawnY,
           score: data.score || 0
         });
         
@@ -333,15 +418,16 @@ wss.on('connection', (ws) => {
           orbs: orbs.filter(o => !o.collected),
           worldWidth: WORLD_WIDTH,
           worldHeight: WORLD_HEIGHT,
-          zones: ZONES
+          zones: ZONES,
+          portals: PORTALS
         }));
         
         // Broadcast new player to others
         broadcast({
           type: 'playerJoined',
           username: data.username,
-          x: SPAWN_X,
-          y: SPAWN_Y
+          x: spawnX,
+          y: spawnY
         }, ws);
       }
       
@@ -400,6 +486,43 @@ wss.on('connection', (ws) => {
               }
             } catch (error) {
               console.error('Error updating score:', error);
+            }
+          }
+        }
+      }
+      
+      if (data.type === 'interactPortal') {
+        const player = players.get(ws);
+        if (player) {
+          // Find nearest portal
+          const portal = PORTALS.find(p => {
+            const distance = Math.sqrt(
+              Math.pow(player.x - p.x, 2) + Math.pow(player.y - p.y, 2)
+            );
+            return distance < 100; // Interaction range
+          });
+          
+          if (portal) {
+            // Update respawn point
+            try {
+              const accounts = await readAccounts();
+              const account = accounts.find(acc => acc.username === player.username);
+              if (account) {
+                account.respawnX = portal.x;
+                account.respawnY = portal.y;
+                await writeAccounts(accounts);
+                
+                // Confirm to player
+                ws.send(JSON.stringify({
+                  type: 'respawnSet',
+                  portal: portal.name,
+                  town: portal.town,
+                  x: portal.x,
+                  y: portal.y
+                }));
+              }
+            } catch (error) {
+              console.error('Error updating respawn point:', error);
             }
           }
         }

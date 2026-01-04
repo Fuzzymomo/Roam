@@ -27,6 +27,14 @@ let currentZone = null;
 let zoneDisplayTimer = 0;
 let lastZoneId = null;
 
+// Portal system
+let portals = [];
+let respawnX = 10000;
+let respawnY = 10000;
+let respawnMessage = '';
+let respawnMessageTimer = 0;
+let nearPortal = null;
+
 // Login/Signup handlers
 document.getElementById('loginBtn').addEventListener('click', () => {
   const username = document.getElementById('usernameInput').value.trim();
@@ -64,6 +72,8 @@ async function login(username) {
     if (response.ok) {
       player.username = data.username;
       player.score = data.score || 0;
+      respawnX = data.respawnX || 10000;
+      respawnY = data.respawnY || 10000;
       startGame();
     } else {
       showError(data.error || 'Login failed');
@@ -86,6 +96,8 @@ async function signup(username) {
     if (response.ok) {
       player.username = data.username;
       player.score = data.score || 0;
+      respawnX = data.respawnX || 10000;
+      respawnY = data.respawnY || 10000;
       startGame();
     } else {
       showError(data.error || 'Signup failed');
@@ -117,7 +129,9 @@ function startGame() {
     socket.send(JSON.stringify({
       type: 'join',
       username: player.username,
-      score: player.score
+      score: player.score,
+      respawnX: respawnX,
+      respawnY: respawnY
     }));
   };
   
@@ -137,6 +151,11 @@ function startGame() {
         zones = data.zones;
       }
       
+      // Update portals if provided
+      if (data.portals) {
+        portals = data.portals;
+      }
+      
       // Set player position from server
       const serverPlayer = data.players.find(p => p.username === player.username);
       if (serverPlayer) {
@@ -145,6 +164,13 @@ function startGame() {
         updateCamera();
         checkZoneChange();
       }
+    }
+    
+    if (data.type === 'respawnSet') {
+      respawnX = data.x;
+      respawnY = data.y;
+      respawnMessage = `Respawn point set to ${data.town}!`;
+      respawnMessageTimer = 180; // 3 seconds at 60fps
     }
     
     if (data.type === 'playerJoined') {
@@ -187,6 +213,15 @@ function startGame() {
   // Keyboard handlers
   window.addEventListener('keydown', (e) => {
     keys[e.key.toLowerCase()] = true;
+    
+    // Portal interaction (E key)
+    if (e.key === 'e' || e.key === 'E') {
+      if (nearPortal && socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'interactPortal'
+        }));
+      }
+    }
   });
   
   window.addEventListener('keyup', (e) => {
@@ -262,6 +297,18 @@ function checkZoneChange() {
   }
 }
 
+// Check for nearby portals
+function checkNearbyPortals() {
+  nearPortal = null;
+  for (let portal of portals) {
+    const distance = dist(player.x, player.y, portal.x, portal.y);
+    if (distance < 100) { // Interaction range
+      nearPortal = portal;
+      break;
+    }
+  }
+}
+
 function draw() {
   if (!loggedIn) return;
   
@@ -270,6 +317,9 @@ function draw() {
   
   // Check zone changes
   checkZoneChange();
+  
+  // Check for nearby portals
+  checkNearbyPortals();
   
   // Draw zones with their themes
   drawZones();
@@ -306,6 +356,9 @@ function draw() {
       y: player.y
     }));
   }
+  
+  // Draw portals (before orbs so they're visible)
+  drawPortals();
   
   // Draw orbs (only those visible on screen)
   for (let orb of orbs) {
@@ -365,6 +418,12 @@ function draw() {
   // Draw zone name display
   drawZoneDisplay();
   
+  // Draw respawn message
+  drawRespawnMessage();
+  
+  // Draw portal interaction hint
+  drawPortalHint();
+  
   // Draw minimap
   drawMinimap();
   
@@ -374,6 +433,77 @@ function draw() {
   textSize(12);
   text('WASD to move', 10, canvasHeight - 30);
   text('Collect orbs to earn points!', 10, canvasHeight - 15);
+}
+
+// Draw portals
+function drawPortals() {
+  for (let portal of portals) {
+    const screenPos = worldToScreen(portal.x, portal.y);
+    
+    // Only draw if portal is visible on screen
+    if (screenPos.x > -100 && screenPos.x < canvasWidth + 100 &&
+        screenPos.y > -100 && screenPos.y < canvasHeight + 100) {
+      
+      // Portal outer ring (animated pulsing effect)
+      const pulse = sin(frameCount * 0.1) * 10;
+      fill(100, 50, 200, 150);
+      noStroke();
+      ellipse(screenPos.x, screenPos.y, 60 + pulse, 60 + pulse);
+      
+      // Portal inner ring
+      fill(150, 100, 255, 200);
+      ellipse(screenPos.x, screenPos.y, 40 + pulse * 0.5, 40 + pulse * 0.5);
+      
+      // Portal center
+      fill(200, 150, 255);
+      ellipse(screenPos.x, screenPos.y, 20, 20);
+      
+      // Portal name
+      fill(255, 255, 255);
+      textAlign(CENTER);
+      textSize(12);
+      text(portal.town, screenPos.x, screenPos.y - 45);
+    }
+  }
+}
+
+// Draw portal interaction hint
+function drawPortalHint() {
+  if (nearPortal) {
+    // Background
+    fill(0, 0, 0, 200);
+    noStroke();
+    rect(canvasWidth / 2 - 150, canvasHeight - 80, 300, 40);
+    
+    // Text
+    fill(255, 255, 0);
+    textAlign(CENTER);
+    textSize(16);
+    text(`Press E to set respawn point at ${nearPortal.town}`, canvasWidth / 2, canvasHeight - 55);
+  }
+}
+
+// Draw respawn message
+function drawRespawnMessage() {
+  if (respawnMessageTimer > 0 && respawnMessage) {
+    respawnMessageTimer--;
+    
+    // Background
+    fill(0, 0, 0, 200);
+    noStroke();
+    textSize(18);
+    textStyle(BOLD);
+    const msgWidth = textWidth(respawnMessage) + 40;
+    const rectX = (canvasWidth - msgWidth) / 2;
+    rect(rectX, canvasHeight / 2 - 30, msgWidth, 50);
+    
+    // Message
+    fill(100, 255, 100);
+    textAlign(CENTER);
+    text(respawnMessage, canvasWidth / 2, canvasHeight / 2);
+    
+    textStyle(NORMAL);
+  }
 }
 
 // Draw zone name when entering a new zone
