@@ -883,7 +883,7 @@ function draw() {
   textAlign(LEFT);
   textSize(12);
   text('WASD to move | C - Character Sheet | Click to attack enemies', 10, canvasHeight - 30);
-  text('Collect orbs to earn points and XP!', 10, canvasHeight - 15);
+  text('Kill enemies to gain XP! Higher level mobs give more XP.', 10, canvasHeight - 15);
 }
 
 // Draw enemies
@@ -901,11 +901,28 @@ function drawEnemies() {
       fill(enemy.color[0], enemy.color[1], enemy.color[2]);
       ellipse(screenPos.x, screenPos.y, 25, 25);
       
-      // Draw enemy name
+      // Draw enemy name and level
       fill(255);
       textAlign(CENTER);
       textSize(10);
-      text(enemy.name, screenPos.x, screenPos.y - 20);
+      const levelText = enemy.level ? `Lv.${enemy.level} ${enemy.name}` : enemy.name;
+      text(levelText, screenPos.x, screenPos.y - 20);
+      
+      // Color code by level difference
+      if (enemy.level) {
+        const levelDiff = enemy.level - player.level;
+        if (levelDiff > 3) {
+          fill(255, 0, 0); // Red - much higher level
+        } else if (levelDiff > 0) {
+          fill(255, 150, 0); // Orange - higher level
+        } else if (levelDiff === 0) {
+          fill(255, 255, 0); // Yellow - same level
+        } else {
+          fill(150, 255, 150); // Green - lower level
+        }
+        textSize(9);
+        text(`Lv.${enemy.level}`, screenPos.x, screenPos.y - 32);
+      }
       
       // Draw health bar
       const barWidth = 40;

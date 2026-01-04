@@ -565,61 +565,189 @@ const ZONES = [
   }
 ];
 
-// Enemy types
-const ENEMY_TYPES = {
-  goblin: {
-    name: 'Goblin',
-    level: 1,
-    hp: 50,
-    maxHp: 50,
-    damage: 5,
-    defense: 2,
-    xpReward: 25,
-    goldReward: 5,
-    speed: 1.5,
-    attackRange: 40,
-    color: [100, 150, 100]
+// Base enemy templates (scaled by level)
+const ENEMY_TEMPLATES = {
+  // Central Plains - Low level enemies
+  forest_sprite: {
+    name: 'Forest Sprite',
+    baseLevel: 1,
+    baseHp: 40,
+    baseDamage: 4,
+    baseDefense: 1,
+    baseXp: 15,
+    baseGold: 3,
+    speed: 2.0,
+    attackRange: 35,
+    color: [100, 200, 100],
+    zones: ['central_wilderness']
   },
-  orc: {
-    name: 'Orc',
-    level: 3,
-    hp: 120,
-    maxHp: 120,
-    damage: 12,
-    defense: 5,
-    xpReward: 50,
-    goldReward: 10,
-    speed: 1.2,
-    attackRange: 45,
-    color: [150, 100, 100]
-  },
-  skeleton: {
-    name: 'Skeleton',
-    level: 2,
-    hp: 80,
-    maxHp: 80,
-    damage: 8,
-    defense: 3,
-    xpReward: 35,
-    goldReward: 7,
+  wild_boar: {
+    name: 'Wild Boar',
+    baseLevel: 2,
+    baseHp: 70,
+    baseDamage: 7,
+    baseDefense: 2,
+    baseXp: 25,
+    baseGold: 5,
     speed: 1.8,
     attackRange: 40,
-    color: [200, 200, 200]
+    color: [150, 100, 80],
+    zones: ['central_wilderness']
   },
-  wolf: {
-    name: 'Wolf',
-    level: 1,
-    hp: 40,
-    maxHp: 40,
-    damage: 6,
-    defense: 1,
-    xpReward: 20,
-    goldReward: 4,
-    speed: 2.5,
+  
+  // Northwood (Forest) - Mid level enemies
+  treant: {
+    name: 'Treant',
+    baseLevel: 5,
+    baseHp: 150,
+    baseDamage: 15,
+    baseDefense: 8,
+    baseXp: 60,
+    baseGold: 12,
+    speed: 0.8,
+    attackRange: 50,
+    color: [50, 150, 50],
+    zones: ['north_town', 'north_south_road_west', 'east_west_road_north']
+  },
+  forest_wolf: {
+    name: 'Forest Wolf',
+    baseLevel: 4,
+    baseHp: 100,
+    baseDamage: 12,
+    baseDefense: 4,
+    baseXp: 45,
+    baseGold: 9,
+    speed: 2.2,
+    attackRange: 38,
+    color: [80, 120, 80],
+    zones: ['north_town', 'north_south_road_west', 'east_west_road_north']
+  },
+  
+  // Sandhaven (Desert) - Mid-High level enemies
+  desert_scorpion: {
+    name: 'Desert Scorpion',
+    baseLevel: 7,
+    baseHp: 120,
+    baseDamage: 18,
+    baseDefense: 6,
+    baseXp: 80,
+    baseGold: 15,
+    speed: 1.5,
     attackRange: 35,
-    color: [100, 100, 150]
+    color: [180, 150, 100],
+    zones: ['south_town', 'north_south_road_east', 'east_west_road_south']
+  },
+  sand_elemental: {
+    name: 'Sand Elemental',
+    baseLevel: 8,
+    baseHp: 200,
+    baseDamage: 22,
+    baseDefense: 10,
+    baseXp: 100,
+    baseGold: 18,
+    speed: 1.0,
+    attackRange: 45,
+    color: [200, 180, 120],
+    zones: ['south_town', 'north_south_road_east', 'east_west_road_south']
+  },
+  
+  // Seabreeze (Coastal) - Mid level enemies
+  sea_serpent: {
+    name: 'Sea Serpent',
+    baseLevel: 6,
+    baseHp: 140,
+    baseDamage: 16,
+    baseDefense: 7,
+    baseXp: 70,
+    baseGold: 13,
+    speed: 1.6,
+    attackRange: 42,
+    color: [80, 120, 200],
+    zones: ['east_town', 'north_south_road_east', 'east_west_road_north']
+  },
+  kraken_spawn: {
+    name: 'Kraken Spawn',
+    baseLevel: 5,
+    baseHp: 110,
+    baseDamage: 14,
+    baseDefense: 5,
+    baseXp: 55,
+    baseGold: 11,
+    speed: 1.4,
+    attackRange: 40,
+    color: [60, 100, 180],
+    zones: ['east_town', 'north_south_road_east', 'east_west_road_north']
+  },
+  
+  // Frosthold (Snow) - High level enemies
+  ice_troll: {
+    name: 'Ice Troll',
+    baseLevel: 10,
+    baseHp: 250,
+    baseDamage: 28,
+    baseDefense: 12,
+    baseXp: 130,
+    baseGold: 22,
+    speed: 1.2,
+    attackRange: 48,
+    color: [150, 180, 200],
+    zones: ['west_town', 'north_south_road_west', 'east_west_road_south']
+  },
+  frost_wraith: {
+    name: 'Frost Wraith',
+    baseLevel: 9,
+    baseHp: 180,
+    baseDamage: 25,
+    baseDefense: 11,
+    baseXp: 110,
+    baseGold: 20,
+    speed: 1.8,
+    attackRange: 44,
+    color: [200, 220, 240],
+    zones: ['west_town', 'north_south_road_west', 'east_west_road_south']
   }
 };
+
+// Calculate enemy stats based on level
+function calculateEnemyStats(template, level) {
+  const levelMultiplier = 1 + (level - template.baseLevel) * 0.15; // 15% per level above base
+  const levelDiff = Math.max(0, level - template.baseLevel);
+  
+  return {
+    name: template.name,
+    level: level,
+    hp: Math.floor(template.baseHp * levelMultiplier),
+    maxHp: Math.floor(template.baseHp * levelMultiplier),
+    damage: Math.floor(template.baseDamage * levelMultiplier),
+    defense: Math.floor(template.baseDefense * levelMultiplier),
+    // XP scales with level difference - higher level mobs give more XP
+    baseXp: template.baseXp,
+    baseGold: template.baseGold,
+    speed: template.speed,
+    attackRange: template.attackRange,
+    color: template.color,
+    zones: template.zones
+  };
+}
+
+// Calculate XP reward based on mob level vs player level
+function calculateXPReward(mobLevel, playerLevel, baseXp) {
+  const levelDiff = mobLevel - playerLevel;
+  
+  // Base XP from mob
+  let xp = baseXp;
+  
+  // Bonus for killing higher level mobs
+  if (levelDiff > 0) {
+    xp = Math.floor(baseXp * (1 + levelDiff * 0.25)); // 25% bonus per level above player
+  }
+  // Penalty for killing lower level mobs
+  else if (levelDiff < 0) {
+    xp = Math.floor(baseXp * Math.max(0.1, 1 + levelDiff * 0.15)); // 15% penalty per level below, minimum 10%
+  }
+  
+  return Math.max(1, xp); // Minimum 1 XP
+}
 
 // Store connected players
 const players = new Map();
@@ -642,56 +770,82 @@ function generateOrbs() {
 generateOrbs();
 spawnEnemies();
 
-// Spawn enemies in the world
-function spawnEnemies() {
-  const enemyCount = 100; // Total enemies in the world
-  
-  for (let i = 0; i < enemyCount; i++) {
-    const enemyTypes = Object.keys(ENEMY_TYPES);
-    const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
-    const enemyType = ENEMY_TYPES[randomType];
-    
-    // Spawn in wilderness areas (not in towns)
-    let x, y;
-    do {
-      x = Math.random() * WORLD_WIDTH;
-      y = Math.random() * WORLD_HEIGHT;
-    } while (isInTown(x, y));
-    
-    const enemyId = nextEnemyId++;
-    enemies.set(enemyId, {
-      id: enemyId,
-      type: randomType,
-      name: enemyType.name,
-      x: x,
-      y: y,
-      hp: enemyType.maxHp,
-      maxHp: enemyType.maxHp,
-      damage: enemyType.damage,
-      defense: enemyType.defense,
-      xpReward: enemyType.xpReward,
-      goldReward: enemyType.goldReward,
-      speed: enemyType.speed,
-      attackRange: enemyType.attackRange,
-      color: enemyType.color,
-      target: null,
-      lastAttack: 0,
-      attackCooldown: 1000 // 1 second
-    });
-  }
-}
-
-// Check if coordinates are in a town
-function isInTown(x, y) {
+// Get zone at coordinates
+function getZoneAt(x, y) {
   for (let zone of ZONES) {
-    if (zone.type === 'town' && 
-        x >= zone.x && x <= zone.x + zone.width &&
+    if (x >= zone.x && x <= zone.x + zone.width &&
         y >= zone.y && y <= zone.y + zone.height) {
-      return true;
+      return zone;
     }
   }
-  return false;
+  return null;
 }
+
+// Get enemies that can spawn in a zone
+function getEnemiesForZone(zoneId) {
+  const availableEnemies = [];
+  
+  Object.keys(ENEMY_TEMPLATES).forEach(key => {
+    const template = ENEMY_TEMPLATES[key];
+    if (template.zones.includes(zoneId)) {
+      availableEnemies.push({ key, template });
+    }
+  });
+  
+  return availableEnemies;
+}
+
+// Spawn enemies in the world - zone-based
+function spawnEnemies() {
+  const enemiesPerZone = 15; // Enemies per zone
+  
+  // Spawn enemies in each zone
+  ZONES.forEach(zone => {
+    if (zone.type === 'town') return; // Don't spawn in towns
+    
+    const zoneEnemies = getEnemiesForZone(zone.id);
+    if (zoneEnemies.length === 0) return;
+    
+    for (let i = 0; i < enemiesPerZone; i++) {
+      // Random enemy type for this zone
+      const randomEnemy = zoneEnemies[Math.floor(Math.random() * zoneEnemies.length)];
+      
+      // Random level variation (base level ± 2)
+      const levelVariation = Math.floor(Math.random() * 5) - 2; // -2 to +2
+      const enemyLevel = Math.max(1, randomEnemy.template.baseLevel + levelVariation);
+      
+      // Calculate stats for this level
+      const enemyStats = calculateEnemyStats(randomEnemy.template, enemyLevel);
+      
+      // Random position within zone
+      const x = zone.x + Math.random() * zone.width;
+      const y = zone.y + Math.random() * zone.height;
+      
+      const enemyId = nextEnemyId++;
+      enemies.set(enemyId, {
+        id: enemyId,
+        type: randomEnemy.key,
+        name: enemyStats.name,
+        level: enemyStats.level,
+        x: x,
+        y: y,
+        hp: enemyStats.hp,
+        maxHp: enemyStats.maxHp,
+        damage: enemyStats.damage,
+        defense: enemyStats.defense,
+        baseXp: enemyStats.baseXp,
+        baseGold: enemyStats.baseGold,
+        speed: enemyStats.speed,
+        attackRange: enemyStats.attackRange,
+        color: enemyStats.color,
+        target: null,
+        lastAttack: 0,
+        attackCooldown: 1000 // 1 second
+      });
+    }
+  });
+}
+
 
 // Calculate damage
 function calculateDamage(attacker, defender) {
@@ -818,71 +972,13 @@ wss.on('connection', (ws) => {
               score: player.score
             });
             
-            // Update score and XP on server
+            // Update score on server (no XP from orbs)
             try {
               const accounts = await readAccounts();
               const account = accounts.find(acc => acc.username === player.username);
               if (account) {
                 account.score = player.score;
-                
-                // Give XP for orb collection
-                const xpGain = 15;
-                account.xp += xpGain;
-                
-                // Check for level up
-                let leveledUp = false;
-                while (account.xp >= getXPForLevel(account.level)) {
-                  account.xp -= getXPForLevel(account.level);
-                  account.level += 1;
-                  leveledUp = true;
-                  
-                  // Recalculate stats for new level
-                  const baseStats = CHARACTER_CLASSES[account.characterClass]?.baseStats || CHARACTER_CLASSES.warrior.baseStats;
-                  const newStats = calculateStatsForLevel(baseStats, account.level);
-                  
-                  // Update stats but preserve current HP/MP percentages
-                  const hpPercent = account.hp / account.maxHp;
-                  const mpPercent = account.mp / account.maxMp;
-                  
-                  account.maxHp = newStats.maxHp;
-                  account.hp = Math.floor(account.maxHp * hpPercent);
-                  account.maxMp = newStats.maxMp;
-                  account.mp = Math.floor(account.maxMp * mpPercent);
-                  account.str = newStats.str;
-                  account.dex = newStats.dex;
-                  account.int = newStats.int;
-                  account.vit = newStats.vit;
-                  account.def = newStats.def;
-                }
-                
                 await writeAccounts(accounts);
-                
-                // Notify player of level up
-                if (leveledUp) {
-                  ws.send(JSON.stringify({
-                    type: 'levelUp',
-                    level: account.level,
-                    stats: {
-                      hp: account.hp,
-                      maxHp: account.maxHp,
-                      mp: account.mp,
-                      maxMp: account.maxMp,
-                      str: account.str,
-                      dex: account.dex,
-                      int: account.int,
-                      vit: account.vit,
-                      def: account.def
-                    }
-                  }));
-                }
-                
-                // Send updated character data
-                ws.send(JSON.stringify({
-                  type: 'characterUpdate',
-                  xp: account.xp,
-                  xpForNextLevel: getXPForLevel(account.level),
-                  level: account.level
-                }));
               }
             } catch (error) {
               console.error('Error updating score:', error);
@@ -955,13 +1051,15 @@ wss.on('connection', (ws) => {
               
               // Check if enemy is dead
               if (enemy.hp <= 0) {
-                // Give XP and rewards
+                // Give XP and rewards based on level difference
                 try {
                   const accounts = await readAccounts();
                   const account = accounts.find(acc => acc.username === player.username);
                   if (account) {
-                    account.xp += enemy.xpReward;
-                    account.score += enemy.goldReward;
+                    // Calculate XP based on mob level vs player level
+                    const xpReward = calculateXPReward(enemy.level, account.level, enemy.baseXp);
+                    account.xp += xpReward;
+                    account.score += enemy.baseGold;
                     
                     // Check for level up
                     let leveledUp = false;
@@ -1018,51 +1116,57 @@ wss.on('connection', (ws) => {
                       xpForNextLevel: getXPForLevel(account.level),
                       level: account.level
                     }));
+                    
+                    // Broadcast enemy death with calculated XP
+                    broadcast({
+                      type: 'enemyKilled',
+                      enemyId: enemy.id,
+                      xpReward: xpReward,
+                      goldReward: enemy.baseGold,
+                      killer: player.username
+                    });
                   }
                 } catch (error) {
                   console.error('Error updating account:', error);
                 }
                 
-                // Broadcast enemy death
-                broadcast({
-                  type: 'enemyKilled',
-                  enemyId: enemy.id,
-                  xpReward: enemy.xpReward,
-                  goldReward: enemy.goldReward,
-                  killer: player.username
-                });
-                
-                // Respawn enemy after delay
+                // Respawn enemy after delay in same zone
                 setTimeout(() => {
-                  const enemyTypes = Object.keys(ENEMY_TYPES);
-                  const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
-                  const enemyType = ENEMY_TYPES[randomType];
-                  
-                  let x, y;
-                  do {
-                    x = Math.random() * WORLD_WIDTH;
-                    y = Math.random() * WORLD_HEIGHT;
-                  } while (isInTown(x, y));
-                  
-                  enemy.type = randomType;
-                  enemy.name = enemyType.name;
-                  enemy.x = x;
-                  enemy.y = y;
-                  enemy.hp = enemyType.maxHp;
-                  enemy.maxHp = enemyType.maxHp;
-                  enemy.damage = enemyType.damage;
-                  enemy.defense = enemyType.defense;
-                  enemy.xpReward = enemyType.xpReward;
-                  enemy.goldReward = enemyType.goldReward;
-                  enemy.speed = enemyType.speed;
-                  enemy.attackRange = enemyType.attackRange;
-                  enemy.color = enemyType.color;
-                  enemy.target = null;
-                  
-                  broadcast({
-                    type: 'enemyRespawn',
-                    enemy: enemy
-                  });
+                  const zone = getZoneAt(enemy.x, enemy.y);
+                  if (zone && zone.type !== 'town') {
+                    const zoneEnemies = getEnemiesForZone(zone.id);
+                    if (zoneEnemies.length > 0) {
+                      const randomEnemy = zoneEnemies[Math.floor(Math.random() * zoneEnemies.length)];
+                      const levelVariation = Math.floor(Math.random() * 5) - 2;
+                      const enemyLevel = Math.max(1, randomEnemy.template.baseLevel + levelVariation);
+                      const enemyStats = calculateEnemyStats(randomEnemy.template, enemyLevel);
+                      
+                      // Respawn in same zone
+                      const x = zone.x + Math.random() * zone.width;
+                      const y = zone.y + Math.random() * zone.height;
+                      
+                      enemy.type = randomEnemy.key;
+                      enemy.name = enemyStats.name;
+                      enemy.level = enemyLevel;
+                      enemy.x = x;
+                      enemy.y = y;
+                      enemy.hp = enemyStats.hp;
+                      enemy.maxHp = enemyStats.maxHp;
+                      enemy.damage = enemyStats.damage;
+                      enemy.defense = enemyStats.defense;
+                      enemy.baseXp = enemyStats.baseXp;
+                      enemy.baseGold = enemyStats.baseGold;
+                      enemy.speed = enemyStats.speed;
+                      enemy.attackRange = enemyStats.attackRange;
+                      enemy.color = enemyStats.color;
+                      enemy.target = null;
+                      
+                      broadcast({
+                        type: 'enemyRespawn',
+                        enemy: enemy
+                      });
+                    }
+                  }
                 }, 10000); // Respawn after 10 seconds
               }
             }
