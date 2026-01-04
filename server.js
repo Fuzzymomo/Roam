@@ -1318,6 +1318,91 @@ wss.on('connection', (ws) => {
         }
       }
       
+      if (data.type === 'chat') {
+        const player = players.get(ws);
+        if (!player) return;
+        
+        const message = data.message.trim();
+        if (!message || message.length > 500) return; // Limit message length
+        
+        if (data.channel === 'global') {
+          // Broadcast to all players
+          broadcast({
+            type: 'chatMessage',
+            channel: 'global',
+            sender: player.username,
+            message: message
+          });
+        } else if (data.channel === 'local') {
+          // Broadcast to nearby players (within 1000 units)
+          const nearbyPlayers = Array.from(players.entries()).filter(([ws2, p]) => {
+            if (ws2 === ws) return false; // Don't send to sender
+            const distance = Math.sqrt(
+              Math.pow(p.x - player.x, 2) + Math.pow(p.y - player.y, 2)
+            );
+            return distance <= 1000;
+          });
+          
+          // Send to sender (echo)
+          ws.send(JSON.stringify({
+            type: 'chatMessage',
+            channel: 'local',
+            sender: player.username,
+            message: message
+          }));
+          
+          // Send to nearby players
+          nearbyPlayers.forEach(([ws2]) => {
+            if (ws2.readyState === WebSocket.OPEN) {
+              ws2.send(JSON.stringify({
+                type: 'chatMessage',
+                channel: 'local',
+                sender: player.username,
+                message: message
+              }));
+            }
+          });
+        } else if (data.channel === 'whisper') {
+          // Send to specific target player
+          const targetUsername = data.target;
+          let targetWs = null;
+          
+          players.forEach((p, ws2) => {
+            if (p.username === targetUsername) {
+              targetWs = ws2;
+            }
+          });
+          
+          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            // Send to target
+            targetWs.send(JSON.stringify({
+              type: 'chatMessage',
+              channel: 'whisper',
+              sender: player.username,
+              message: message,
+              target: targetUsername
+            }));
+            
+            // Echo to sender
+            ws.send(JSON.stringify({
+              type: 'chatMessage',
+              channel: 'whisper',
+              sender: player.username,
+              message: message,
+              target: targetUsername
+            }));
+          } else {
+            // Target not found
+            ws.send(JSON.stringify({
+              type: 'chatMessage',
+              channel: 'system',
+              sender: 'System',
+              message: `Player "${targetUsername}" is not online or not found.`
+            }));
+          }
+        }
+      }
+      
       if (data.type === 'attackEnemy') {
         const player = players.get(ws);
         if (player) {

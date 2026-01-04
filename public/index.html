@@ -9,15 +9,14 @@
         body {
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            overflow: hidden;
             background-color: #1a1a1a;
             font-family: Arial, sans-serif;
+            width: 100vw;
+            height: 100vh;
         }
         #loginScreen {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -69,19 +68,25 @@
         }
         #gameCanvas {
             display: block;
+            width: 100vw !important;
+            height: 100vh !important;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
         #scoreDisplay {
-            position: absolute;
+            position: fixed;
             top: 10px;
             left: 10px;
             color: white;
             font-size: 18px;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.7);
             padding: 10px;
             border-radius: 5px;
+            z-index: 50;
         }
         #characterCreation {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -203,6 +208,122 @@
             background: #555;
             cursor: not-allowed;
         }
+        #chatContainer {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            width: 400px;
+            max-width: 30vw;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 5px;
+            display: none;
+            z-index: 100;
+        }
+        #chatTabs {
+            display: flex;
+            border-bottom: 1px solid #555;
+        }
+        .chatTab {
+            flex: 1;
+            padding: 8px;
+            background: #333;
+            color: #aaa;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 5px 5px 0 0;
+        }
+        .chatTab.active {
+            background: #2a2a2a;
+            color: #fff;
+            border-bottom: 2px solid #4CAF50;
+        }
+        .chatTab:hover {
+            background: #3a3a3a;
+        }
+        #chatMessages {
+            height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 12px;
+            max-height: 200px;
+        }
+        .chatMessage {
+            margin: 3px 0;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+        .chatMessage.global {
+            color: #fff;
+        }
+        .chatMessage.local {
+            color: #90EE90;
+        }
+        .chatMessage.whisper {
+            color: #FFB6C1;
+        }
+        .chatMessage.system {
+            color: #FFA500;
+            font-style: italic;
+        }
+        .chatMessage .sender {
+            font-weight: bold;
+        }
+        .chatMessage .sender.global {
+            color: #4CAF50;
+        }
+        .chatMessage .sender.local {
+            color: #90EE90;
+        }
+        .chatMessage .sender.whisper {
+            color: #FF69B4;
+        }
+        #chatInput {
+            display: flex;
+            border-top: 1px solid #555;
+        }
+        #chatInput input {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: #2a2a2a;
+            color: #fff;
+            font-size: 12px;
+            border-radius: 0 0 5px 0;
+        }
+        #chatInput input:focus {
+            outline: none;
+        }
+        #chatInput input::placeholder {
+            color: #666;
+        }
+        #chatInput button {
+            padding: 8px 15px;
+            border: none;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 0 0 5px 0;
+        }
+        #chatInput button:hover {
+            background: #45a049;
+        }
+        #chatToggle {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 101;
+            display: none;
+        }
+        #chatToggle:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
     </style>
 </head>
 <body>
@@ -252,6 +373,20 @@
         </div>
         <div style="margin-top: 5px; font-size: 12px;">
             XP: <span id="xpDisplay">0</span>/<span id="xpForNextLevelDisplay">100</span>
+        </div>
+    </div>
+
+    <button id="chatToggle">Chat</button>
+    <div id="chatContainer">
+        <div id="chatTabs">
+            <button class="chatTab active" data-channel="global">Global</button>
+            <button class="chatTab" data-channel="local">Local</button>
+            <button class="chatTab" data-channel="whisper">Whisper</button>
+        </div>
+        <div id="chatMessages"></div>
+        <div id="chatInput">
+            <input type="text" id="chatInputField" placeholder="Type a message... (Press Enter to send)" />
+            <button id="chatSendBtn">Send</button>
         </div>
     </div>
 

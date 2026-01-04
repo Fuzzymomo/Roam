@@ -39,8 +39,8 @@ let camera = {
   x: 0,
   y: 0
 };
-let canvasWidth = 800;
-let canvasHeight = 600;
+let canvasWidth = window.innerWidth;
+let canvasHeight = window.innerHeight;
 
 // Zone system
 let zones = [];
@@ -62,6 +62,13 @@ let equipment = {};
 let itemDatabase = { weapons: [], armor: [], consumables: [], accessories: [] };
 let showInventory = false;
 let selectedInventorySlot = null;
+
+// Chat system
+let chatMessages = [];
+let currentChatChannel = 'global';
+let whisperTarget = null;
+let showChat = true;
+const MAX_CHAT_MESSAGES = 100;
 
 // Login/Signup handlers
 document.getElementById('loginBtn').addEventListener('click', () => {
@@ -429,6 +436,11 @@ function startGame() {
   document.getElementById('scoreDisplay').style.display = 'block';
   updateCharacterDisplay();
   
+  // Initialize chat after a short delay to ensure socket is ready
+  setTimeout(() => {
+    initializeChat();
+  }, 100);
+  
   // Connect WebSocket
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   socket = new WebSocket(`${protocol}//${window.location.host}`);
@@ -621,6 +633,10 @@ function startGame() {
         otherPlayer.y = data.y;
       }
     }
+    
+    if (data.type === 'chatMessage') {
+      addChatMessage(data.message, data.channel, data.sender);
+    }
   };
   
   // Keyboard handlers
@@ -645,7 +661,18 @@ function startGame() {
     if (e.key === 'i' || e.key === 'I') {
       showInventory = !showInventory;
     }
+    
+    // Toggle chat (Enter key - but only when not typing)
+    if (e.key === 'Enter' && document.activeElement.id !== 'chatInputField') {
+      document.getElementById('chatInputField').focus();
+    }
+    
+    // Close chat (Escape key when typing)
+    if (e.key === 'Escape' && document.activeElement.id === 'chatInputField') {
+      document.getElementById('chatInputField').blur();
+    }
   });
+  
   
   // Mouse click handler for attacking (will be called from p5.js mousePressed)
   
@@ -692,9 +719,18 @@ function updateCharacterDisplay() {
 
 // p5.js setup
 function setup() {
-  canvasWidth = 800;
-  canvasHeight = 600;
-  createCanvas(canvasWidth, canvasHeight);
+  // Make canvas fill the viewport
+  canvasWidth = window.innerWidth;
+  canvasHeight = window.innerHeight;
+  const canvas = createCanvas(canvasWidth, canvasHeight);
+  canvas.parent(document.body);
+  
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    canvasWidth = window.innerWidth;
+    canvasHeight = window.innerHeight;
+    resizeCanvas(canvasWidth, canvasHeight);
+  });
 }
 
 // Camera system - follows player and stays within world bounds
@@ -876,8 +912,8 @@ function draw() {
   fill(255, 200);
   textAlign(LEFT);
   textSize(12);
-  text('WASD to move | C - Character Sheet | I - Inventory | Click to attack enemies', 10, canvasHeight - 30);
-  text('Kill enemies to gain XP! Higher level mobs give more XP.', 10, canvasHeight - 15);
+  text('WASD to move | C - Character Sheet | I - Inventory | Click to attack enemies | Enter - Chat', 10, canvasHeight - 30);
+  text('Kill enemies to gain XP! Higher level mobs give more XP. Chat with other players!', 10, canvasHeight - 15);
 }
 
 // Draw enemies
@@ -1791,5 +1827,188 @@ function drawMinimap() {
   textAlign(LEFT);
   textSize(10);
   text('Map', minimapX, minimapY - 5);
+  
+  // Draw chat messages in-game (if enabled)
+  drawChatMessages();
+}
+
+// Initialize chat system
+function initializeChat() {
+  if (!loggedIn) {
+    // Hide chat if not logged in
+    document.getElementById('chatContainer').style.display = 'none';
+    document.getElementById('chatToggle').style.display = 'none';
+    return;
+  }
+  
+  // Show chat container when logged in
+  document.getElementById('chatContainer').style.display = 'block';
+  document.getElementById('chatToggle').style.display = 'block';
+  
+  // Chat tab switching
+  document.querySelectorAll('.chatTab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.chatTab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentChatChannel = tab.dataset.channel;
+      
+      // Clear whisper target if switching away from whisper
+      if (currentChatChannel !== 'whisper') {
+        whisperTarget = null;
+        document.getElementById('chatInputField').placeholder = `Type a message... (Press Enter to send)`;
+      } else {
+        document.getElementById('chatInputField').placeholder = `Type: /whisper [player] [message] or click player name`;
+      }
+    });
+  });
+  
+  // Chat send button
+  document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+  
+  // Chat input Enter key
+  document.getElementById('chatInputField').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      sendChatMessage();
+    }
+  });
+  
+  // Chat toggle button
+  document.getElementById('chatToggle').addEventListener('click', () => {
+    showChat = !showChat;
+    document.getElementById('chatContainer').style.display = showChat ? 'block' : 'none';
+  });
+  
+  // Add welcome message
+  addChatMessage('Welcome to MetaRoam! Type /help for commands.', 'system', 'System');
+}
+
+// Send chat message
+function sendChatMessage() {
+  const input = document.getElementById('chatInputField');
+  const message = input.value.trim();
+  
+  if (!message || !socket || socket.readyState !== WebSocket.OPEN) return;
+  
+  // Handle commands
+  if (message.startsWith('/')) {
+    const parts = message.split(' ');
+    const command = parts[0].toLowerCase();
+    
+    if (command === '/whisper' || command === '/w') {
+      if (parts.length < 3) {
+        addChatMessage('Usage: /whisper [player] [message]', 'system', 'System');
+        input.value = '';
+        return;
+      }
+      const target = parts[1];
+      const whisperMsg = parts.slice(2).join(' ');
+      
+      socket.send(JSON.stringify({
+        type: 'chat',
+        channel: 'whisper',
+        message: whisperMsg,
+        target: target
+      }));
+      
+      addChatMessage(`[To ${target}]: ${whisperMsg}`, 'whisper', player.username);
+    } else if (command === '/help') {
+      addChatMessage('Commands: /whisper [player] [message] or /w [player] [message]', 'system', 'System');
+    } else {
+      addChatMessage('Unknown command. Type /help for help.', 'system', 'System');
+    }
+    
+    input.value = '';
+    return;
+  }
+  
+  // Send regular chat message
+  socket.send(JSON.stringify({
+    type: 'chat',
+    channel: currentChatChannel,
+    message: message,
+    target: whisperTarget
+  }));
+  
+  input.value = '';
+  
+  // Switch away from whisper after sending
+  if (currentChatChannel === 'whisper') {
+    whisperTarget = null;
+  }
+}
+
+// Add chat message to display
+function addChatMessage(message, channel, sender = null) {
+  const chatData = {
+    message: message,
+    channel: channel,
+    sender: sender,
+    timestamp: Date.now()
+  };
+  
+  chatMessages.push(chatData);
+  
+  // Limit message history
+  if (chatMessages.length > MAX_CHAT_MESSAGES) {
+    chatMessages.shift();
+  }
+  
+  // Update chat display
+  updateChatDisplay();
+  
+  // Auto-scroll to bottom
+  const chatMessagesDiv = document.getElementById('chatMessages');
+  chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+}
+
+// Update chat display
+function updateChatDisplay() {
+  const chatMessagesDiv = document.getElementById('chatMessages');
+  chatMessagesDiv.innerHTML = '';
+  
+  chatMessages.forEach(msg => {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chatMessage ${msg.channel}`;
+    
+    let displayText = '';
+    if (msg.channel === 'system') {
+      displayText = msg.message;
+    } else if (msg.sender) {
+      if (msg.channel === 'whisper') {
+        displayText = `<span class="sender whisper">[${msg.sender}]</span>: ${msg.message}`;
+      } else {
+        displayText = `<span class="sender ${msg.channel}">${msg.sender}</span>: ${msg.message}`;
+      }
+    } else {
+      displayText = msg.message;
+    }
+    
+    msgDiv.innerHTML = displayText;
+    chatMessagesDiv.appendChild(msgDiv);
+  });
+}
+
+// Draw chat messages in-game (floating above player heads)
+function drawChatMessages() {
+  // Only show local chat messages above player heads
+  const recentLocalMessages = chatMessages
+    .filter(msg => msg.channel === 'local' && msg.sender && Date.now() - msg.timestamp < 5000)
+    .slice(-10);
+  
+  // Draw messages above players
+  otherPlayers.forEach(other => {
+    const recentMsg = recentLocalMessages.find(m => m.sender === other.username);
+    if (recentMsg) {
+      const screenPos = worldToScreen(other.x, other.y);
+      const timeSince = Date.now() - recentMsg.timestamp;
+      const alpha = map(timeSince, 0, 5000, 255, 0);
+      
+      fill(255, 255, 255, alpha);
+      textAlign(CENTER);
+      textSize(10);
+      const textY = screenPos.y - 40;
+      text(recentMsg.message, screenPos.x, textY);
+    }
+  });
 }
 
