@@ -1,0 +1,16 @@
+{
+  "name": "roamreal",
+  "version": "1.0.0",
+  "description": "Simple 2D game with login system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0"
+  }
+}
+

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoamReal - Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        #loginScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+        #loginScreen h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #loginScreen input {
+            width: 250px;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: #333;
+            color: #fff;
+            font-size: 16px;
+        }
+        #loginScreen button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #loginScreen button:hover {
+            background: #45a049;
+        }
+        #loginScreen button.secondary {
+            background: #2196F3;
+        }
+        #loginScreen button.secondary:hover {
+            background: #0b7dda;
+        }
+        #loginScreen .error {
+            color: #f44336;
+            margin-top: 10px;
+            text-align: center;
+        }
+        #gameCanvas {
+            display: block;
+        }
+        #scoreDisplay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loginScreen">
+        <h1>RoamReal</h1>
+        <input type="text" id="usernameInput" placeholder="Username" autocomplete="off">
+        <button id="loginBtn">Log In</button>
+        <button id="signupBtn" class="secondary">Sign Up</button>
+        <div id="errorMsg" class="error"></div>
+    </div>
+    
+    <div id="scoreDisplay" style="display: none;">
+        <div>Username: <span id="usernameDisplay"></span></div>
+        <div>Score: <span id="scoreValue">0</span></div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
+
