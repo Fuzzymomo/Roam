@@ -147,17 +147,162 @@ const server = app.listen(PORT, () => {
 
 const wss = new WebSocket.Server({ server });
 
+// World configuration
+const WORLD_WIDTH = 2000;
+const WORLD_HEIGHT = 2000;
+const SPAWN_X = WORLD_WIDTH / 2;
+const SPAWN_Y = WORLD_HEIGHT / 2;
+
+// Zone definitions - 4 towns with connecting wilderness areas
+const ZONES = [
+  // North Town - Forest/Mountain Theme
+  {
+    id: 'north_town',
+    name: 'Northwood',
+    type: 'town',
+    x: 200,
+    y: 200,
+    width: 300,
+    height: 300,
+    theme: {
+      bgColor: [30, 60, 40],
+      gridColor: [50, 80, 60],
+      borderColor: [100, 150, 120]
+    }
+  },
+  // South Town - Desert/Plains Theme
+  {
+    id: 'south_town',
+    name: 'Sandhaven',
+    type: 'town',
+    x: 1500,
+    y: 1500,
+    width: 300,
+    height: 300,
+    theme: {
+      bgColor: [80, 70, 50],
+      gridColor: [100, 90, 70],
+      borderColor: [150, 130, 100]
+    }
+  },
+  // East Town - Coastal/Water Theme
+  {
+    id: 'east_town',
+    name: 'Seabreeze',
+    type: 'town',
+    x: 1500,
+    y: 200,
+    width: 300,
+    height: 300,
+    theme: {
+      bgColor: [30, 50, 70],
+      gridColor: [50, 70, 90],
+      borderColor: [80, 120, 150]
+    }
+  },
+  // West Town - Snow/Ice Theme
+  {
+    id: 'west_town',
+    name: 'Frosthold',
+    type: 'town',
+    x: 200,
+    y: 1500,
+    width: 300,
+    height: 300,
+    theme: {
+      bgColor: [60, 70, 80],
+      gridColor: [80, 90, 100],
+      borderColor: [150, 160, 170]
+    }
+  },
+  // Central Wilderness - Neutral connecting area
+  {
+    id: 'central_wilderness',
+    name: 'Central Plains',
+    type: 'wilderness',
+    x: 500,
+    y: 500,
+    width: 1000,
+    height: 1000,
+    theme: {
+      bgColor: [25, 35, 30],
+      gridColor: [40, 50, 45],
+      borderColor: [60, 70, 65]
+    }
+  },
+  // North-South Road
+  {
+    id: 'north_south_road',
+    name: 'Northern Path',
+    type: 'road',
+    x: 200,
+    y: 500,
+    width: 300,
+    height: 1000,
+    theme: {
+      bgColor: [35, 40, 35],
+      gridColor: [50, 55, 50],
+      borderColor: [80, 85, 80]
+    }
+  },
+  // East-West Road
+  {
+    id: 'east_west_road',
+    name: 'Eastern Path',
+    type: 'road',
+    x: 500,
+    y: 200,
+    width: 1000,
+    height: 300,
+    theme: {
+      bgColor: [35, 40, 35],
+      gridColor: [50, 55, 50],
+      borderColor: [80, 85, 80]
+    }
+  },
+  // South-East Road
+  {
+    id: 'south_east_road',
+    name: 'Southern Path',
+    type: 'road',
+    x: 1500,
+    y: 500,
+    width: 300,
+    height: 1000,
+    theme: {
+      bgColor: [35, 40, 35],
+      gridColor: [50, 55, 50],
+      borderColor: [80, 85, 80]
+    }
+  },
+  // South-West Road
+  {
+    id: 'south_west_road',
+    name: 'Western Path',
+    type: 'road',
+    x: 500,
+    y: 1500,
+    width: 1000,
+    height: 300,
+    theme: {
+      bgColor: [35, 40, 35],
+      gridColor: [50, 55, 50],
+      borderColor: [80, 85, 80]
+    }
+  }
+];
+
 // Store connected players
 const players = new Map();
 const orbs = [];
 
 // Generate initial orbs
 function generateOrbs() {
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 30; i++) {
     orbs.push({
       id: i,
-      x: Math.random() * 800,
-      y: Math.random() * 600,
+      x: Math.random() * WORLD_WIDTH,
+      y: Math.random() * WORLD_HEIGHT,
       collected: false
     });
   }
@@ -175,39 +320,44 @@ wss.on('connection', (ws) => {
       if (data.type === 'join') {
         players.set(ws, {
           username: data.username,
-          x: 400,
-          y: 300,
+          x: SPAWN_X,
+          y: SPAWN_Y,
           score: data.score || 0
         });
         
-        // Send current game state
+        // Send current game state with world info
         ws.send(JSON.stringify({
           type: 'gameState',
           players: Array.from(players.values()),
-          orbs: orbs.filter(o => !o.collected)
+          orbs: orbs.filter(o => !o.collected),
+          worldWidth: WORLD_WIDTH,
+          worldHeight: WORLD_HEIGHT,
+          zones: ZONES
         }));
         
         // Broadcast new player to others
         broadcast({
           type: 'playerJoined',
           username: data.username,
-          x: 400,
-          y: 300
+          x: SPAWN_X,
+          y: SPAWN_Y
         }, ws);
       }
       
       if (data.type === 'move') {
         const player = players.get(ws);
         if (player) {
-          player.x = data.x;
-          player.y = data.y;
+          // Validate and clamp position to world boundaries
+          const playerSize = 20;
+          player.x = Math.max(playerSize, Math.min(WORLD_WIDTH - playerSize, data.x));
+          player.y = Math.max(playerSize, Math.min(WORLD_HEIGHT - playerSize, data.y));
           
           // Broadcast movement to other players
           broadcast({
             type: 'playerMove',
             username: player.username,
-            x: data.x,
-            y: data.y
+            x: player.x,
+            y: player.y
           }, ws);
         }
       }
@@ -222,8 +372,8 @@ wss.on('connection', (ws) => {
             
             // Respawn orb after a delay
             setTimeout(() => {
-              orb.x = Math.random() * 800;
-              orb.y = Math.random() * 600;
+              orb.x = Math.random() * WORLD_WIDTH;
+              orb.y = Math.random() * WORLD_HEIGHT;
               orb.collected = false;
               broadcast({
                 type: 'orbRespawn',
