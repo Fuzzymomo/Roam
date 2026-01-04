@@ -437,6 +437,14 @@ const Network = {
       
       if (data.zones) {
         World.zones = data.zones;
+        // Initialize tiles if not already initialized
+        if (!Tiles.tileMap) {
+          Tiles.init(GameState.worldWidth, GameState.worldHeight);
+        }
+        // Regenerate tile map when zones are loaded
+        if (Assets.isLoaded() && Tiles.tileMap) {
+          World.regenerateTiles();
+        }
       }
       
       if (data.portals) {

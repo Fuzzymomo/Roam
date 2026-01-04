@@ -53,6 +53,11 @@ const GameState = {
   levelUpTimer: 0
 };
 
+// p5.js preload function - loads assets before setup
+function preload() {
+  Assets.preload();
+}
+
 // p5.js setup
 function setup() {
   // Make canvas fill the viewport
@@ -67,6 +72,9 @@ function setup() {
     GameState.canvasHeight = window.innerHeight;
     resizeCanvas(GameState.canvasWidth, GameState.canvasHeight);
   });
+  
+  // Initialize tile system (will be re-initialized when zones load)
+  Tiles.init(GameState.worldWidth, GameState.worldHeight);
 }
 
 // Main game loop

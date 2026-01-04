@@ -41,24 +41,48 @@ const World = {
   },
   
   /**
-   * Draw zones with their themes
+   * Draw zones with their themes using tile-based rendering
    */
   draw() {
-    // Get current zone's background color or default
+    // Draw base background (fallback color)
     let bgColor = [20, 25, 30];
     if (this.currentZone && this.currentZone.theme) {
       bgColor = this.currentZone.theme.bgColor;
     }
-    
-    // Draw base background
     background(bgColor[0], bgColor[1], bgColor[2]);
     
-    // Draw all visible zones
+    // Draw tiles if assets are loaded
+    if (Assets.isLoaded() && Tiles.tileMap) {
+      Tiles.draw(Camera.x, Camera.y, GameState.canvasWidth, GameState.canvasHeight);
+    } else {
+      // Fallback: Draw zones as colored rectangles if tiles aren't ready
+      for (let zone of this.zones) {
+        const zoneRight = zone.x + zone.width;
+        const zoneBottom = zone.y + zone.height;
+        
+        // Check if zone is visible on screen
+        if (zoneRight >= Camera.x && zone.x <= Camera.x + GameState.canvasWidth &&
+            zoneBottom >= Camera.y && zone.y <= Camera.y + GameState.canvasHeight) {
+          
+          const screenX = zone.x - Camera.x;
+          const screenY = zone.y - Camera.y;
+          const screenWidth = zone.width;
+          const screenHeight = zone.height;
+          
+          // Draw zone background with slight transparency overlay
+          fill(zone.theme.bgColor[0], zone.theme.bgColor[1], zone.theme.bgColor[2], 100);
+          noStroke();
+          rect(screenX, screenY, screenWidth, screenHeight);
+        }
+      }
+    }
+    
+    // Draw zone borders (optional - can be removed or use wall tiles)
+    // Keeping this for now as overlay
     for (let zone of this.zones) {
       const zoneRight = zone.x + zone.width;
       const zoneBottom = zone.y + zone.height;
       
-      // Check if zone is visible on screen
       if (zoneRight >= Camera.x && zone.x <= Camera.x + GameState.canvasWidth &&
           zoneBottom >= Camera.y && zone.y <= Camera.y + GameState.canvasHeight) {
         
@@ -67,15 +91,10 @@ const World = {
         const screenWidth = zone.width;
         const screenHeight = zone.height;
         
-        // Draw zone background with slight transparency overlay
-        fill(zone.theme.bgColor[0], zone.theme.bgColor[1], zone.theme.bgColor[2], 100);
-        noStroke();
-        rect(screenX, screenY, screenWidth, screenHeight);
-        
-        // Draw zone border
+        // Draw zone border (subtle, can be disabled)
         noFill();
-        stroke(zone.theme.borderColor[0], zone.theme.borderColor[1], zone.theme.borderColor[2], 150);
-        strokeWeight(2);
+        stroke(zone.theme.borderColor[0], zone.theme.borderColor[1], zone.theme.borderColor[2], 80);
+        strokeWeight(1);
         rect(screenX, screenY, screenWidth, screenHeight);
         
         // Draw zone name label (if town)
@@ -90,8 +109,17 @@ const World = {
       }
     }
     
-    // Draw world grid
-    this.drawGrid();
+    // Grid overlay disabled by default (can be re-enabled for debugging)
+    // this.drawGrid();
+  },
+  
+  /**
+   * Regenerate tile map when zones are updated
+   */
+  regenerateTiles() {
+    if (Tiles.tileMap) {
+      Tiles.generateTileMap();
+    }
   },
   
   /**
