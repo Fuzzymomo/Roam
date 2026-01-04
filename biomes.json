@@ -1,0 +1,131 @@
+{
+  "zones": [
+    {
+      "id": "north_town",
+      "name": "Northwood",
+      "type": "town",
+      "x": 2000,
+      "y": 2000,
+      "width": 3000,
+      "height": 3000,
+      "theme": {
+        "bgColor": [30, 60, 40],
+        "gridColor": [50, 80, 60],
+        "borderColor": [100, 150, 120]
+      }
+    },
+    {
+      "id": "south_town",
+      "name": "Sandhaven",
+      "type": "town",
+      "x": 15000,
+      "y": 15000,
+      "width": 3000,
+      "height": 3000,
+      "theme": {
+        "bgColor": [80, 70, 50],
+        "gridColor": [100, 90, 70],
+        "borderColor": [150, 130, 100]
+      }
+    },
+    {
+      "id": "east_town",
+      "name": "Seabreeze",
+      "type": "town",
+      "x": 15000,
+      "y": 2000,
+      "width": 3000,
+      "height": 3000,
+      "theme": {
+        "bgColor": [30, 50, 70],
+        "gridColor": [50, 70, 90],
+        "borderColor": [80, 120, 150]
+      }
+    },
+    {
+      "id": "west_town",
+      "name": "Frosthold",
+      "type": "town",
+      "x": 2000,
+      "y": 15000,
+      "width": 3000,
+      "height": 3000,
+      "theme": {
+        "bgColor": [60, 70, 80],
+        "gridColor": [80, 90, 100],
+        "borderColor": [150, 160, 170]
+      }
+    },
+    {
+      "id": "central_wilderness",
+      "name": "Central Plains",
+      "type": "wilderness",
+      "x": 5000,
+      "y": 5000,
+      "width": 10000,
+      "height": 10000,
+      "theme": {
+        "bgColor": [25, 35, 30],
+        "gridColor": [40, 50, 45],
+        "borderColor": [60, 70, 65]
+      }
+    },
+    {
+      "id": "north_south_road_west",
+      "name": "Northern Path",
+      "type": "road",
+      "x": 2000,
+      "y": 5000,
+      "width": 3000,
+      "height": 10000,
+      "theme": {
+        "bgColor": [35, 40, 35],
+        "gridColor": [50, 55, 50],
+        "borderColor": [80, 85, 80]
+      }
+    },
+    {
+      "id": "east_west_road_north",
+      "name": "Eastern Path",
+      "type": "road",
+      "x": 5000,
+      "y": 2000,
+      "width": 10000,
+      "height": 3000,
+      "theme": {
+        "bgColor": [35, 40, 35],
+        "gridColor": [50, 55, 50],
+        "borderColor": [80, 85, 80]
+      }
+    },
+    {
+      "id": "north_south_road_east",
+      "name": "Southern Path",
+      "type": "road",
+      "x": 15000,
+      "y": 5000,
+      "width": 3000,
+      "height": 10000,
+      "theme": {
+        "bgColor": [35, 40, 35],
+        "gridColor": [50, 55, 50],
+        "borderColor": [80, 85, 80]
+      }
+    },
+    {
+      "id": "east_west_road_south",
+      "name": "Western Path",
+      "type": "road",
+      "x": 5000,
+      "y": 15000,
+      "width": 10000,
+      "height": 3000,
+      "theme": {
+        "bgColor": [35, 40, 35],
+        "gridColor": [50, 55, 50],
+        "borderColor": [80, 85, 80]
+      }
+    }
+  ]
+}
+

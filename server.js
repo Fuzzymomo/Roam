@@ -425,145 +425,19 @@ const PORTALS = [
   }
 ];
 
-// Zone definitions - 4 towns with connecting wilderness areas (scaled for MMO)
-// World is 20,000x20,000, so zones are scaled 10x from original 2000x2000 world
-const ZONES = [
-  // North Town - Forest/Mountain Theme
-  {
-    id: 'north_town',
-    name: 'Northwood',
-    type: 'town',
-    x: 2000,
-    y: 2000,
-    width: 3000,
-    height: 3000,
-    theme: {
-      bgColor: [30, 60, 40],
-      gridColor: [50, 80, 60],
-      borderColor: [100, 150, 120]
-    }
-  },
-  // South Town - Desert/Plains Theme
-  {
-    id: 'south_town',
-    name: 'Sandhaven',
-    type: 'town',
-    x: 15000,
-    y: 15000,
-    width: 3000,
-    height: 3000,
-    theme: {
-      bgColor: [80, 70, 50],
-      gridColor: [100, 90, 70],
-      borderColor: [150, 130, 100]
-    }
-  },
-  // East Town - Coastal/Water Theme
-  {
-    id: 'east_town',
-    name: 'Seabreeze',
-    type: 'town',
-    x: 15000,
-    y: 2000,
-    width: 3000,
-    height: 3000,
-    theme: {
-      bgColor: [30, 50, 70],
-      gridColor: [50, 70, 90],
-      borderColor: [80, 120, 150]
-    }
-  },
-  // West Town - Snow/Ice Theme
-  {
-    id: 'west_town',
-    name: 'Frosthold',
-    type: 'town',
-    x: 2000,
-    y: 15000,
-    width: 3000,
-    height: 3000,
-    theme: {
-      bgColor: [60, 70, 80],
-      gridColor: [80, 90, 100],
-      borderColor: [150, 160, 170]
-    }
-  },
-  // Central Wilderness - Neutral connecting area
-  {
-    id: 'central_wilderness',
-    name: 'Central Plains',
-    type: 'wilderness',
-    x: 5000,
-    y: 5000,
-    width: 10000,
-    height: 10000,
-    theme: {
-      bgColor: [25, 35, 30],
-      gridColor: [40, 50, 45],
-      borderColor: [60, 70, 65]
-    }
-  },
-  // North-South Road (West side)
-  {
-    id: 'north_south_road_west',
-    name: 'Northern Path',
-    type: 'road',
-    x: 2000,
-    y: 5000,
-    width: 3000,
-    height: 10000,
-    theme: {
-      bgColor: [35, 40, 35],
-      gridColor: [50, 55, 50],
-      borderColor: [80, 85, 80]
-    }
-  },
-  // East-West Road (North side)
-  {
-    id: 'east_west_road_north',
-    name: 'Eastern Path',
-    type: 'road',
-    x: 5000,
-    y: 2000,
-    width: 10000,
-    height: 3000,
-    theme: {
-      bgColor: [35, 40, 35],
-      gridColor: [50, 55, 50],
-      borderColor: [80, 85, 80]
-    }
-  },
-  // North-South Road (East side)
-  {
-    id: 'north_south_road_east',
-    name: 'Southern Path',
-    type: 'road',
-    x: 15000,
-    y: 5000,
-    width: 3000,
-    height: 10000,
-    theme: {
-      bgColor: [35, 40, 35],
-      gridColor: [50, 55, 50],
-      borderColor: [80, 85, 80]
-    }
-  },
-  // East-West Road (South side)
-  {
-    id: 'east_west_road_south',
-    name: 'Western Path',
-    type: 'road',
-    x: 5000,
-    y: 15000,
-    width: 10000,
-    height: 3000,
-    theme: {
-      bgColor: [35, 40, 35],
-      gridColor: [50, 55, 50],
-      borderColor: [80, 85, 80]
-    }
-  }
-];
+// Load biomes from JSON file
+let ZONES = [];
+try {
+  const biomesPath = path.join(__dirname, 'biomes.json');
+  const biomesData = fs.readFileSync(biomesPath, 'utf8');
+  const biomes = JSON.parse(biomesData);
+  ZONES = biomes.zones || [];
+  console.log(`Loaded ${ZONES.length} biomes from biomes.json`);
+} catch (error) {
+  console.error('Error loading biomes.json:', error);
+  console.log('Using default empty zones array');
+  ZONES = [];
+}
 
 // Base enemy templates (scaled by level)
 const ENEMY_TEMPLATES = {
@@ -571,8 +445,8 @@ const ENEMY_TEMPLATES = {
   forest_sprite: {
     name: 'Forest Sprite',
     baseLevel: 1,
-    baseHp: 40,
-    baseDamage: 4,
+    baseHp: 50,
+    baseDamage: 8,
     baseDefense: 1,
     baseXp: 15,
     baseGold: 3,
@@ -584,8 +458,8 @@ const ENEMY_TEMPLATES = {
   wild_boar: {
     name: 'Wild Boar',
     baseLevel: 2,
-    baseHp: 70,
-    baseDamage: 7,
+    baseHp: 90,
+    baseDamage: 14,
     baseDefense: 2,
     baseXp: 25,
     baseGold: 5,
@@ -599,8 +473,8 @@ const ENEMY_TEMPLATES = {
   treant: {
     name: 'Treant',
     baseLevel: 5,
-    baseHp: 150,
-    baseDamage: 15,
+    baseHp: 200,
+    baseDamage: 30,
     baseDefense: 8,
     baseXp: 60,
     baseGold: 12,
@@ -612,8 +486,8 @@ const ENEMY_TEMPLATES = {
   forest_wolf: {
     name: 'Forest Wolf',
     baseLevel: 4,
-    baseHp: 100,
-    baseDamage: 12,
+    baseHp: 130,
+    baseDamage: 24,
     baseDefense: 4,
     baseXp: 45,
     baseGold: 9,
@@ -627,8 +501,8 @@ const ENEMY_TEMPLATES = {
   desert_scorpion: {
     name: 'Desert Scorpion',
     baseLevel: 7,
-    baseHp: 120,
-    baseDamage: 18,
+    baseHp: 150,
+    baseDamage: 36,
     baseDefense: 6,
     baseXp: 80,
     baseGold: 15,
@@ -640,8 +514,8 @@ const ENEMY_TEMPLATES = {
   sand_elemental: {
     name: 'Sand Elemental',
     baseLevel: 8,
-    baseHp: 200,
-    baseDamage: 22,
+    baseHp: 250,
+    baseDamage: 44,
     baseDefense: 10,
     baseXp: 100,
     baseGold: 18,
@@ -655,8 +529,8 @@ const ENEMY_TEMPLATES = {
   sea_serpent: {
     name: 'Sea Serpent',
     baseLevel: 6,
-    baseHp: 140,
-    baseDamage: 16,
+    baseHp: 180,
+    baseDamage: 32,
     baseDefense: 7,
     baseXp: 70,
     baseGold: 13,
@@ -668,8 +542,8 @@ const ENEMY_TEMPLATES = {
   kraken_spawn: {
     name: 'Kraken Spawn',
     baseLevel: 5,
-    baseHp: 110,
-    baseDamage: 14,
+    baseHp: 140,
+    baseDamage: 28,
     baseDefense: 5,
     baseXp: 55,
     baseGold: 11,
@@ -683,8 +557,8 @@ const ENEMY_TEMPLATES = {
   ice_troll: {
     name: 'Ice Troll',
     baseLevel: 10,
-    baseHp: 250,
-    baseDamage: 28,
+    baseHp: 350,
+    baseDamage: 56,
     baseDefense: 12,
     baseXp: 130,
     baseGold: 22,
@@ -696,8 +570,8 @@ const ENEMY_TEMPLATES = {
   frost_wraith: {
     name: 'Frost Wraith',
     baseLevel: 9,
-    baseHp: 180,
-    baseDamage: 25,
+    baseHp: 240,
+    baseDamage: 50,
     baseDefense: 11,
     baseXp: 110,
     baseGold: 20,
@@ -751,23 +625,9 @@ function calculateXPReward(mobLevel, playerLevel, baseXp) {
 
 // Store connected players
 const players = new Map();
-const orbs = [];
 const enemies = new Map(); // Map of enemy ID to enemy object
 let nextEnemyId = 0;
 
-// Generate initial orbs - more orbs for larger world
-function generateOrbs() {
-  for (let i = 0; i < 200; i++) {
-    orbs.push({
-      id: i,
-      x: Math.random() * WORLD_WIDTH,
-      y: Math.random() * WORLD_HEIGHT,
-      collected: false
-    });
-  }
-}
-
-generateOrbs();
 spawnEnemies();
 
 // Get zone at coordinates
@@ -797,7 +657,7 @@ function getEnemiesForZone(zoneId) {
 
 // Spawn enemies in the world - zone-based
 function spawnEnemies() {
-  const enemiesPerZone = 15; // Enemies per zone
+  const enemiesPerZone = 50; // Enemies per zone (increased for more mobs)
   
   // Spawn enemies in each zone
   ZONES.forEach(zone => {
@@ -840,7 +700,7 @@ function spawnEnemies() {
         color: enemyStats.color,
         target: null,
         lastAttack: 0,
-        attackCooldown: 1000 // 1 second
+        attackCooldown: 600 // 0.6 seconds (faster attacks)
       });
     }
   });
@@ -910,7 +770,6 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({
           type: 'gameState',
           players: Array.from(players.values()),
-          orbs: orbs.filter(o => !o.collected),
           enemies: Array.from(enemies.values()),
           worldWidth: WORLD_WIDTH,
           worldHeight: WORLD_HEIGHT,
@@ -942,48 +801,6 @@ wss.on('connection', (ws) => {
             x: player.x,
             y: player.y
           }, ws);
-        }
-      }
-      
-      if (data.type === 'collectOrb') {
-        const player = players.get(ws);
-        if (player) {
-          const orb = orbs.find(o => o.id === data.orbId && !o.collected);
-          if (orb) {
-            orb.collected = true;
-            player.score += 10;
-            
-            // Respawn orb after a delay
-            setTimeout(() => {
-              orb.x = Math.random() * WORLD_WIDTH;
-              orb.y = Math.random() * WORLD_HEIGHT;
-              orb.collected = false;
-              broadcast({
-                type: 'orbRespawn',
-                orb: orb
-              });
-            }, 5000);
-            
-            // Broadcast orb collection
-            broadcast({
-              type: 'orbCollected',
-              orbId: data.orbId,
-              username: player.username,
-              score: player.score
-            });
-            
-            // Update score on server (no XP from orbs)
-            try {
-              const accounts = await readAccounts();
-              const account = accounts.find(acc => acc.username === player.username);
-              if (account) {
-                account.score = player.score;
-                await writeAccounts(accounts);
-              }
-            } catch (error) {
-              console.error('Error updating score:', error);
-            }
-          }
         }
       }
       
@@ -1218,7 +1035,7 @@ setInterval(() => {
         Math.pow(enemy.x - player.x, 2) + Math.pow(enemy.y - player.y, 2)
       );
       
-      if (distance < 300 && distance < nearestDistance) { // Aggro range
+      if (distance < 500 && distance < nearestDistance) { // Aggro range (increased for more aggression)
         nearestDistance = distance;
         nearestPlayer = player;
       }

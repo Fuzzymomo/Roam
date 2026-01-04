@@ -40,3 +40,4 @@ pids/
 # Optional eslint cache
 .eslintcache
 
+endpoint_key.txt

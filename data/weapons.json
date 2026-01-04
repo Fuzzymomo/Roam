@@ -1,0 +1,347 @@
+{
+  "weapons": [
+    {
+      "id": "wooden_sword",
+      "name": "Wooden Sword",
+      "type": "weapon",
+      "weaponType": "sword",
+      "baseRarity": "common",
+      "level": 1,
+      "description": "A basic wooden training sword.",
+      "attackRange": [40, 50],
+      "baseStats": {
+        "damage": [4.0, 6.0],
+        "str": [1.0, 3.0],
+        "dex": [0.5, 2.0]
+      },
+      "statRanges": {
+        "weight": [1.5, 2.5],
+        "balance": [0.6, 0.9]
+      },
+      "traits": ["lightweight", "beginner_friendly"],
+      "canHaveModifier": true,
+      "value": [8, 15],
+      "icon": "placeholder_sword_wood"
+    },
+    {
+      "id": "iron_sword",
+      "name": "Iron Sword",
+      "type": "weapon",
+      "weaponType": "sword",
+      "baseRarity": "common",
+      "level": 5,
+      "description": "A sturdy iron blade.",
+      "attackRange": [42, 52],
+      "baseStats": {
+        "damage": [12.0, 18.0],
+        "str": [4.0, 7.0],
+        "dex": [1.5, 3.5],
+        "def": [0.5, 2.0]
+      },
+      "statRanges": {
+        "weight": [2.5, 3.5],
+        "balance": [0.7, 0.95],
+        "sharpness": [0.6, 0.9]
+      },
+      "traits": ["durable", "reliable", "versatile"],
+      "canHaveModifier": true,
+      "value": [40, 65],
+      "icon": "placeholder_sword_iron"
+    },
+    {
+      "id": "steel_sword",
+      "name": "Steel Sword",
+      "type": "weapon",
+      "weaponType": "sword",
+      "baseRarity": "uncommon",
+      "level": 10,
+      "description": "A well-crafted steel blade.",
+      "attackRange": [45, 55],
+      "baseStats": {
+        "damage": [25.0, 35.0],
+        "str": [7.0, 11.0],
+        "dex": [3.0, 6.0],
+        "def": [1.5, 3.5]
+      },
+      "statRanges": {
+        "weight": [3.0, 4.0],
+        "balance": [0.75, 1.0],
+        "sharpness": [0.7, 1.0],
+        "quality": [0.7, 0.95]
+      },
+      "traits": ["well_crafted", "balanced", "sharp", "versatile"],
+      "canHaveModifier": true,
+      "value": [120, 180],
+      "icon": "placeholder_sword_steel"
+    },
+    {
+      "id": "flame_sword",
+      "name": "Flame Sword",
+      "type": "weapon",
+      "weaponType": "sword",
+      "baseRarity": "rare",
+      "level": 15,
+      "description": "A sword imbued with fire magic.",
+      "attackRange": [48, 58],
+      "baseStats": {
+        "damage": [45.0, 60.0],
+        "str": [10.0, 15.0],
+        "int": [6.0, 12.0],
+        "dex": [4.0, 8.0],
+        "fireDamage": [5.0, 12.0]
+      },
+      "statRanges": {
+        "weight": [3.5, 4.5],
+        "balance": [0.8, 1.0],
+        "magicAffinity": [0.6, 0.9],
+        "fireIntensity": [0.5, 1.0]
+      },
+      "traits": ["magical", "fire_imbued", "powerful", "rare"],
+      "canHaveModifier": true,
+      "value": [450, 600],
+      "icon": "placeholder_sword_flame"
+    },
+    {
+      "id": "wooden_staff",
+      "name": "Apprentice Staff",
+      "type": "weapon",
+      "weaponType": "staff",
+      "baseRarity": "common",
+      "level": 1,
+      "description": "A simple wooden staff for beginners.",
+      "attackRange": [45, 55],
+      "baseStats": {
+        "damage": [2.0, 4.5],
+        "int": [2.0, 4.5],
+        "mp": [8.0, 15.0]
+      },
+      "statRanges": {
+        "weight": [1.0, 2.0],
+        "magicConductivity": [0.5, 0.8],
+        "stability": [0.6, 0.9]
+      },
+      "traits": ["lightweight", "magical", "beginner_friendly"],
+      "canHaveModifier": true,
+      "value": [10, 20],
+      "icon": "placeholder_staff_wood"
+    },
+    {
+      "id": "mage_staff",
+      "name": "Mage Staff",
+      "type": "weapon",
+      "weaponType": "staff",
+      "baseRarity": "uncommon",
+      "level": 8,
+      "description": "A staff favored by mages.",
+      "attackRange": [50, 60],
+      "baseStats": {
+        "damage": [15.0, 25.0],
+        "int": [10.0, 15.0],
+        "mp": [25.0, 40.0],
+        "maxMp": [15.0, 30.0]
+      },
+      "statRanges": {
+        "weight": [2.0, 3.0],
+        "magicConductivity": [0.7, 1.0],
+        "stability": [0.75, 1.0],
+        "spellPower": [0.6, 0.9]
+      },
+      "traits": ["magical", "powerful", "mage_favored", "enhanced_mana"],
+      "canHaveModifier": true,
+      "value": [160, 250],
+      "icon": "placeholder_staff_mage"
+    },
+    {
+      "id": "arcane_staff",
+      "name": "Arcane Staff",
+      "type": "weapon",
+      "weaponType": "staff",
+      "baseRarity": "epic",
+      "level": 20,
+      "description": "A powerful staff channeling arcane energies.",
+      "attackRange": [55, 65],
+      "baseStats": {
+        "damage": [60.0, 85.0],
+        "int": [18.0, 25.0],
+        "mp": [40.0, 65.0],
+        "maxMp": [40.0, 65.0],
+        "magicDamage": [0.15, 0.25]
+      },
+      "statRanges": {
+        "weight": [3.0, 4.5],
+        "magicConductivity": [0.9, 1.2],
+        "stability": [0.85, 1.1],
+        "spellPower": [0.8, 1.2],
+        "arcaneResonance": [0.7, 1.0]
+      },
+      "traits": ["arcane", "powerful", "rare", "magic_enhanced", "legendary_quality"],
+      "canHaveModifier": true,
+      "value": [1200, 1800],
+      "icon": "placeholder_staff_arcane"
+    },
+    {
+      "id": "rusty_dagger",
+      "name": "Rusty Dagger",
+      "type": "weapon",
+      "weaponType": "dagger",
+      "baseRarity": "common",
+      "level": 1,
+      "description": "An old, rusty dagger.",
+      "attackRange": [30, 40],
+      "baseStats": {
+        "damage": [3.0, 5.5],
+        "dex": [2.0, 4.5],
+        "str": [0.5, 2.0]
+      },
+      "statRanges": {
+        "weight": [0.8, 1.5],
+        "balance": [0.5, 0.8],
+        "sharpness": [0.3, 0.6],
+        "rustLevel": [0.4, 0.8]
+      },
+      "traits": ["lightweight", "rusty", "worn", "cheap"],
+      "canHaveModifier": true,
+      "value": [5, 12],
+      "icon": "placeholder_dagger_rusty"
+    },
+    {
+      "id": "assassin_blade",
+      "name": "Assassin's Blade",
+      "type": "weapon",
+      "weaponType": "dagger",
+      "baseRarity": "rare",
+      "level": 12,
+      "description": "A deadly blade used by assassins.",
+      "attackRange": [32, 42],
+      "baseStats": {
+        "damage": [30.0, 42.0],
+        "dex": [12.0, 18.0],
+        "str": [4.0, 8.0],
+        "critChance": [0.05, 0.12],
+        "critDamage": [1.2, 1.5]
+      },
+      "statRanges": {
+        "weight": [1.2, 2.0],
+        "balance": [0.85, 1.1],
+        "sharpness": [0.9, 1.2],
+        "stealth": [0.7, 1.0],
+        "precision": [0.8, 1.1]
+      },
+      "traits": ["deadly", "precise", "stealthy", "assassin_grade", "high_crit"],
+      "canHaveModifier": true,
+      "value": [500, 750],
+      "icon": "placeholder_dagger_assassin"
+    },
+    {
+      "id": "shadow_dagger",
+      "name": "Shadow Dagger",
+      "type": "weapon",
+      "weaponType": "dagger",
+      "baseRarity": "epic",
+      "level": 18,
+      "description": "A dagger forged from shadow itself.",
+      "attackRange": [35, 45],
+      "baseStats": {
+        "damage": [50.0, 65.0],
+        "dex": [18.0, 25.0],
+        "int": [8.0, 15.0],
+        "str": [6.0, 12.0],
+        "shadowDamage": [8.0, 15.0],
+        "critChance": [0.10, 0.20]
+      },
+      "statRanges": {
+        "weight": [1.0, 1.8],
+        "balance": [0.9, 1.2],
+        "sharpness": [1.0, 1.3],
+        "stealth": [0.9, 1.2],
+        "precision": [0.95, 1.2],
+        "shadowAffinity": [0.8, 1.1]
+      },
+      "traits": ["shadow", "epic", "legendary_quality", "high_crit", "magical", "stealthy"],
+      "canHaveModifier": true,
+      "value": [1000, 1500],
+      "icon": "placeholder_dagger_shadow"
+    },
+    {
+      "id": "training_bow",
+      "name": "Training Bow",
+      "type": "weapon",
+      "weaponType": "bow",
+      "baseRarity": "common",
+      "level": 3,
+      "description": "A basic bow for practice.",
+      "attackRange": [200, 250],
+      "baseStats": {
+        "damage": [6.0, 10.0],
+        "dex": [3.0, 6.0]
+      },
+      "statRanges": {
+        "weight": [2.0, 3.0],
+        "drawWeight": [15, 25],
+        "accuracy": [0.6, 0.85],
+        "range": [0.7, 0.95]
+      },
+      "traits": ["lightweight", "beginner_friendly", "ranged"],
+      "canHaveModifier": true,
+      "value": [20, 35],
+      "icon": "placeholder_bow_training"
+    },
+    {
+      "id": "hunter_bow",
+      "name": "Hunter's Bow",
+      "type": "weapon",
+      "weaponType": "bow",
+      "baseRarity": "uncommon",
+      "level": 10,
+      "description": "A reliable bow used by hunters.",
+      "attackRange": [250, 300],
+      "baseStats": {
+        "damage": [20.0, 30.0],
+        "dex": [8.0, 13.0],
+        "str": [2.0, 5.0],
+        "range": [1.1, 1.3]
+      },
+      "statRanges": {
+        "weight": [2.5, 3.5],
+        "drawWeight": [25, 40],
+        "accuracy": [0.8, 1.0],
+        "range": [0.9, 1.2],
+        "quality": [0.75, 1.0]
+      },
+      "traits": ["reliable", "accurate", "hunter_grade", "ranged", "versatile"],
+      "canHaveModifier": true,
+      "value": [150, 220],
+      "icon": "placeholder_bow_hunter"
+    },
+    {
+      "id": "dragonslayer_sword",
+      "name": "Dragonslayer",
+      "type": "weapon",
+      "weaponType": "sword",
+      "baseRarity": "legendary",
+      "level": 30,
+      "description": "A legendary sword that has slain dragons.",
+      "attackRange": [55, 65],
+      "baseStats": {
+        "damage": [110.0, 135.0],
+        "str": [25.0, 35.0],
+        "dex": [12.0, 20.0],
+        "def": [8.0, 15.0],
+        "vit": [8.0, 15.0],
+        "dragonDamage": [20.0, 35.0]
+      },
+      "statRanges": {
+        "weight": [5.0, 7.0],
+        "balance": [0.95, 1.2],
+        "sharpness": [1.1, 1.5],
+        "quality": [1.0, 1.3],
+        "legendaryPower": [0.9, 1.2],
+        "dragonSlayer": [1.0, 1.5]
+      },
+      "traits": ["legendary", "dragon_slayer", "immortal_quality", "powerful", "rare", "divine"],
+      "canHaveModifier": true,
+      "value": [4500, 6000],
+      "icon": "placeholder_sword_dragonslayer"
+    }
+  ]
+}

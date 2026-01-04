@@ -21,7 +21,6 @@ let player = {
   def: 10
 };
 let otherPlayers = [];
-let orbs = [];
 let enemies = [];
 let keys = {};
 let loggedIn = false;
@@ -429,7 +428,6 @@ function startGame() {
     
     if (data.type === 'gameState') {
       otherPlayers = data.players.filter(p => p.username !== player.username);
-      orbs = data.orbs;
       
       // Update world dimensions if provided
       if (data.worldWidth) worldWidth = data.worldWidth;
@@ -490,15 +488,6 @@ function startGame() {
       otherPlayers = otherPlayers.filter(p => p.username !== data.username);
     }
     
-    if (data.type === 'orbCollected') {
-      if (data.username === player.username) {
-        player.score = data.score;
-        updateCharacterDisplay();
-        updateScoreOnServer();
-      }
-      orbs = orbs.filter(o => o.id !== data.orbId);
-    }
-    
     if (data.type === 'characterUpdate') {
       player.xp = data.xp;
       player.xpForNextLevel = data.xpForNextLevel;
@@ -522,10 +511,6 @@ function startGame() {
       levelUpMessage = `Level Up! You are now Level ${player.level}!`;
       levelUpTimer = 300; // 5 seconds at 60fps
       updateCharacterDisplay();
-    }
-    
-    if (data.type === 'orbRespawn') {
-      orbs.push(data.orb);
     }
     
     if (data.type === 'enemyMove') {
@@ -792,38 +777,11 @@ function draw() {
     }));
   }
   
-  // Draw portals (before orbs so they're visible)
+  // Draw portals
   drawPortals();
   
   // Draw enemies
   drawEnemies();
-  
-  // Draw orbs (only those visible on screen)
-  for (let orb of orbs) {
-    const screenPos = worldToScreen(orb.x, orb.y);
-    
-    // Only draw if orb is visible on screen
-    if (screenPos.x > -50 && screenPos.x < canvasWidth + 50 &&
-        screenPos.y > -50 && screenPos.y < canvasHeight + 50) {
-      
-      const distance = dist(player.x, player.y, orb.x, orb.y);
-      
-      // Check collision
-      if (distance < player.size + 10 && socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-          type: 'collectOrb',
-          orbId: orb.id
-        }));
-      }
-      
-      // Draw orb
-      fill(255, 215, 0);
-      noStroke();
-      ellipse(screenPos.x, screenPos.y, 20, 20);
-      fill(255, 255, 0);
-      ellipse(screenPos.x, screenPos.y, 12, 12);
-    }
-  }
   
   // Draw other players (only those visible on screen)
   for (let other of otherPlayers) {
@@ -1355,15 +1313,6 @@ function drawMinimap() {
     stroke(zone.theme.borderColor[0], zone.theme.borderColor[1], zone.theme.borderColor[2], 200);
     strokeWeight(1);
     rect(zoneMapX, zoneMapY, zoneMapWidth, zoneMapHeight);
-  }
-  
-  // Draw orbs on minimap
-  fill(255, 215, 0);
-  noStroke();
-  for (let orb of orbs) {
-    const mapX = minimapX + orb.x * scale;
-    const mapY = minimapY + orb.y * scale;
-    ellipse(mapX, mapY, 3, 3);
   }
   
   // Draw other players on minimap

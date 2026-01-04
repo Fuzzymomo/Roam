@@ -1,0 +1,370 @@
+{
+  "accessories": [
+    {
+      "id": "copper_ring",
+      "name": "Copper Ring",
+      "type": "accessory",
+      "slot": "ring",
+      "baseRarity": "common",
+      "level": 3,
+      "description": "A simple copper ring.",
+      "baseStats": {
+        "str": [1.0, 3.5],
+        "def": [0.5, 2.0]
+      },
+      "statRanges": {
+        "weight": [0.1, 0.3],
+        "quality": [0.5, 0.8],
+        "polish": [0.4, 0.7]
+      },
+      "traits": ["lightweight", "basic", "cheap", "simple"],
+      "canHaveModifier": true,
+      "value": [20, 35],
+      "icon": "placeholder_ring_copper"
+    },
+    {
+      "id": "silver_ring",
+      "name": "Silver Ring",
+      "type": "accessory",
+      "slot": "ring",
+      "baseRarity": "uncommon",
+      "level": 8,
+      "description": "A polished silver ring.",
+      "baseStats": {
+        "str": [4.0, 7.0],
+        "dex": [2.0, 5.0],
+        "def": [1.5, 3.5]
+      },
+      "statRanges": {
+        "weight": [0.2, 0.4],
+        "quality": [0.7, 1.0],
+        "polish": [0.7, 1.0],
+        "elegance": [0.6, 0.9]
+      },
+      "traits": ["elegant", "polished", "uncommon", "versatile", "refined"],
+      "canHaveModifier": true,
+      "value": [130, 180],
+      "icon": "placeholder_ring_silver"
+    },
+    {
+      "id": "gold_ring",
+      "name": "Gold Ring",
+      "type": "accessory",
+      "slot": "ring",
+      "baseRarity": "rare",
+      "level": 15,
+      "description": "An ornate gold ring.",
+      "baseStats": {
+        "str": [7.0, 11.0],
+        "dex": [5.0, 8.0],
+        "int": [4.0, 7.0],
+        "def": [3.0, 6.0]
+      },
+      "statRanges": {
+        "weight": [0.3, 0.6],
+        "quality": [0.85, 1.1],
+        "polish": [0.9, 1.2],
+        "elegance": [0.85, 1.1],
+        "prestige": [0.8, 1.0]
+      },
+      "traits": ["ornate", "prestigious", "rare", "versatile", "refined", "valuable"],
+      "canHaveModifier": true,
+      "value": [550, 700],
+      "icon": "placeholder_ring_gold"
+    },
+    {
+      "id": "ring_of_strength",
+      "name": "Ring of Strength",
+      "type": "accessory",
+      "slot": "ring",
+      "baseRarity": "epic",
+      "level": 20,
+      "description": "A ring that enhances physical power.",
+      "baseStats": {
+        "str": [13.0, 18.0],
+        "vit": [8.0, 13.0],
+        "maxHp": [40.0, 65.0]
+      },
+      "statRanges": {
+        "weight": [0.4, 0.7],
+        "quality": [1.0, 1.3],
+        "magicPower": [0.7, 1.1],
+        "strengthEnhancement": [0.9, 1.3]
+      },
+      "traits": ["epic", "powerful", "strength_enhanced", "rare", "magical", "legendary_quality"],
+      "canHaveModifier": true,
+      "value": [1800, 2400],
+      "icon": "placeholder_ring_strength"
+    },
+    {
+      "id": "ring_of_wisdom",
+      "name": "Ring of Wisdom",
+      "type": "accessory",
+      "slot": "ring",
+      "baseRarity": "epic",
+      "level": 20,
+      "description": "A ring that enhances magical power.",
+      "baseStats": {
+        "int": [13.0, 18.0],
+        "maxMp": [40.0, 65.0],
+        "mp": [25.0, 40.0]
+      },
+      "statRanges": {
+        "weight": [0.4, 0.7],
+        "quality": [1.0, 1.3],
+        "magicPower": [0.9, 1.3],
+        "wisdomEnhancement": [0.9, 1.3]
+      },
+      "traits": ["epic", "powerful", "wisdom_enhanced", "rare", "magical", "legendary_quality"],
+      "canHaveModifier": true,
+      "value": [1800, 2400],
+      "icon": "placeholder_ring_wisdom"
+    },
+    {
+      "id": "simple_amulet",
+      "name": "Simple Amulet",
+      "type": "accessory",
+      "slot": "amulet",
+      "baseRarity": "common",
+      "level": 5,
+      "description": "A basic protective amulet.",
+      "baseStats": {
+        "def": [2.0, 4.5],
+        "vit": [1.5, 3.5]
+      },
+      "statRanges": {
+        "weight": [0.3, 0.6],
+        "quality": [0.5, 0.8],
+        "protection": [0.5, 0.8]
+      },
+      "traits": ["protective", "basic", "simple", "lightweight"],
+      "canHaveModifier": true,
+      "value": [30, 55],
+      "icon": "placeholder_amulet_simple"
+    },
+    {
+      "id": "health_amulet",
+      "name": "Amulet of Health",
+      "type": "accessory",
+      "slot": "amulet",
+      "baseRarity": "uncommon",
+      "level": 10,
+      "description": "An amulet that increases vitality.",
+      "baseStats": {
+        "vit": [6.0, 11.0],
+        "maxHp": [30.0, 55.0],
+        "def": [2.0, 4.5]
+      },
+      "statRanges": {
+        "weight": [0.5, 0.9],
+        "quality": [0.7, 1.0],
+        "protection": [0.7, 1.0],
+        "vitalityEnhancement": [0.7, 1.0]
+      },
+      "traits": ["health_enhanced", "protective", "uncommon", "vitality_boost", "durable"],
+      "canHaveModifier": true,
+      "value": [220, 300],
+      "icon": "placeholder_amulet_health"
+    },
+    {
+      "id": "mana_amulet",
+      "name": "Amulet of Mana",
+      "type": "accessory",
+      "slot": "amulet",
+      "baseRarity": "uncommon",
+      "level": 10,
+      "description": "An amulet that increases magical energy.",
+      "baseStats": {
+        "int": [6.0, 11.0],
+        "maxMp": [30.0, 55.0],
+        "mp": [15.0, 30.0]
+      },
+      "statRanges": {
+        "weight": [0.5, 0.9],
+        "quality": [0.7, 1.0],
+        "magicPower": [0.7, 1.0],
+        "manaEnhancement": [0.7, 1.0]
+      },
+      "traits": ["mana_enhanced", "magical", "uncommon", "mana_boost", "durable"],
+      "canHaveModifier": true,
+      "value": [220, 300],
+      "icon": "placeholder_amulet_mana"
+    },
+    {
+      "id": "protection_amulet",
+      "name": "Amulet of Protection",
+      "type": "accessory",
+      "slot": "amulet",
+      "baseRarity": "rare",
+      "level": 15,
+      "description": "A powerful protective amulet.",
+      "baseStats": {
+        "def": [10.0, 15.0],
+        "vit": [5.0, 8.0],
+        "maxHp": [50.0, 75.0]
+      },
+      "statRanges": {
+        "weight": [0.7, 1.2],
+        "quality": [0.85, 1.1],
+        "protection": [0.9, 1.2],
+        "defenseEnhancement": [0.9, 1.2]
+      },
+      "traits": ["extremely_protective", "rare", "defense_enhanced", "durable", "powerful", "valuable"],
+      "canHaveModifier": true,
+      "value": [750, 950],
+      "icon": "placeholder_amulet_protection"
+    },
+    {
+      "id": "dragon_heart_amulet",
+      "name": "Dragon Heart Amulet",
+      "type": "accessory",
+      "slot": "amulet",
+      "baseRarity": "legendary",
+      "level": 30,
+      "description": "An amulet containing the essence of a dragon's heart.",
+      "baseStats": {
+        "str": [18.0, 25.0],
+        "int": [18.0, 25.0],
+        "vit": [18.0, 25.0],
+        "def": [13.0, 18.0],
+        "maxHp": [130.0, 180.0],
+        "maxMp": [80.0, 130.0]
+      },
+      "statRanges": {
+        "weight": [1.0, 1.8],
+        "quality": [1.2, 1.6],
+        "magicPower": [1.1, 1.5],
+        "dragonPower": [1.0, 1.4],
+        "allStatsEnhancement": [1.0, 1.3]
+      },
+      "traits": ["legendary", "dragon_essence", "immortal_quality", "all_stats", "extremely_powerful", "rare", "divine"],
+      "canHaveModifier": true,
+      "value": [9000, 12000],
+      "icon": "placeholder_amulet_dragon"
+    },
+    {
+      "id": "leather_belt",
+      "name": "Leather Belt",
+      "type": "accessory",
+      "slot": "belt",
+      "baseRarity": "common",
+      "level": 2,
+      "description": "A simple leather belt.",
+      "baseStats": {
+        "def": [1.5, 3.5],
+        "dex": [0.5, 2.0]
+      },
+      "statRanges": {
+        "weight": [0.4, 0.8],
+        "quality": [0.5, 0.8],
+        "flexibility": [0.6, 0.9]
+      },
+      "traits": ["lightweight", "flexible", "basic", "simple"],
+      "canHaveModifier": true,
+      "value": [12, 22],
+      "icon": "placeholder_belt_leather"
+    },
+    {
+      "id": "iron_belt",
+      "name": "Iron Belt",
+      "type": "accessory",
+      "slot": "belt",
+      "baseRarity": "uncommon",
+      "level": 7,
+      "description": "A sturdy iron belt.",
+      "baseStats": {
+        "def": [4.0, 7.0],
+        "str": [2.0, 5.0],
+        "vit": [1.5, 3.5]
+      },
+      "statRanges": {
+        "weight": [0.8, 1.5],
+        "quality": [0.7, 1.0],
+        "reinforcement": [0.7, 1.0]
+      },
+      "traits": ["sturdy", "reinforced", "uncommon", "durable", "reliable"],
+      "canHaveModifier": true,
+      "value": [85, 130],
+      "icon": "placeholder_belt_iron"
+    },
+    {
+      "id": "warrior_belt",
+      "name": "Warrior's Belt",
+      "type": "accessory",
+      "slot": "belt",
+      "baseRarity": "rare",
+      "level": 12,
+      "description": "A belt worn by experienced warriors.",
+      "baseStats": {
+        "def": [7.0, 11.0],
+        "str": [5.0, 8.0],
+        "vit": [4.0, 7.0],
+        "maxHp": [25.0, 40.0]
+      },
+      "statRanges": {
+        "weight": [1.2, 2.0],
+        "quality": [0.85, 1.1],
+        "reinforcement": [0.85, 1.1],
+        "warriorGrade": [0.8, 1.1]
+      },
+      "traits": ["warrior_grade", "rare", "durable", "reinforced", "powerful", "experienced"],
+      "canHaveModifier": true,
+      "value": [450, 600],
+      "icon": "placeholder_belt_warrior"
+    },
+    {
+      "id": "cloak_of_shadows",
+      "name": "Cloak of Shadows",
+      "type": "accessory",
+      "slot": "cloak",
+      "baseRarity": "epic",
+      "level": 18,
+      "description": "A cloak that blends with shadows.",
+      "baseStats": {
+        "dex": [13.0, 18.0],
+        "int": [7.0, 12.0],
+        "def": [5.0, 9.0]
+      },
+      "statRanges": {
+        "weight": [1.5, 2.5],
+        "quality": [1.0, 1.3],
+        "stealth": [0.9, 1.3],
+        "shadowAffinity": [0.9, 1.3],
+        "mobility": [0.8, 1.1]
+      },
+      "traits": ["epic", "stealthy", "shadow_imbued", "rare", "mobile", "legendary_quality"],
+      "canHaveModifier": true,
+      "value": [1300, 1800],
+      "icon": "placeholder_cloak_shadows"
+    },
+    {
+      "id": "royal_crown",
+      "name": "Royal Crown",
+      "type": "accessory",
+      "slot": "crown",
+      "baseRarity": "legendary",
+      "level": 25,
+      "description": "A crown fit for royalty.",
+      "baseStats": {
+        "str": [13.0, 18.0],
+        "int": [13.0, 18.0],
+        "dex": [8.0, 13.0],
+        "vit": [13.0, 18.0],
+        "def": [8.0, 13.0],
+        "maxHp": [80.0, 130.0],
+        "maxMp": [60.0, 100.0]
+      },
+      "statRanges": {
+        "weight": [1.0, 2.0],
+        "quality": [1.2, 1.6],
+        "prestige": [1.1, 1.5],
+        "royalPower": [1.0, 1.4],
+        "allStatsEnhancement": [1.0, 1.3]
+      },
+      "traits": ["legendary", "royal", "immortal_quality", "all_stats", "extremely_powerful", "prestigious", "divine"],
+      "canHaveModifier": true,
+      "value": [11000, 15000],
+      "icon": "placeholder_crown_royal"
+    }
+  ]
+}

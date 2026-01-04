@@ -1,0 +1,303 @@
+{
+  "consumables": [
+    {
+      "id": "health_potion_small",
+      "name": "Small Health Potion",
+      "type": "consumable",
+      "consumableType": "potion",
+      "baseRarity": "common",
+      "level": 1,
+      "description": "Restores a small amount of health.",
+      "effect": {
+        "type": "heal",
+        "amount": [40.0, 65.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.7, 1.0],
+        "purity": [0.6, 0.9],
+        "potency": [0.7, 1.0]
+      },
+      "traits": ["healing", "basic", "common", "instant", "potion"],
+      "value": [8, 15],
+      "stackable": true,
+      "maxStack": 99,
+      "icon": "placeholder_potion_health_small"
+    },
+    {
+      "id": "health_potion_medium",
+      "name": "Medium Health Potion",
+      "type": "consumable",
+      "consumableType": "potion",
+      "baseRarity": "uncommon",
+      "level": 5,
+      "description": "Restores a moderate amount of health.",
+      "effect": {
+        "type": "heal",
+        "amount": [130.0, 180.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.8, 1.1],
+        "purity": [0.75, 1.0],
+        "potency": [0.8, 1.1]
+      },
+      "traits": ["healing", "uncommon", "instant", "potion", "moderate"],
+      "value": [30, 45],
+      "stackable": true,
+      "maxStack": 99,
+      "icon": "placeholder_potion_health_medium"
+    },
+    {
+      "id": "health_potion_large",
+      "name": "Large Health Potion",
+      "type": "consumable",
+      "consumableType": "potion",
+      "baseRarity": "rare",
+      "level": 10,
+      "description": "Restores a large amount of health.",
+      "effect": {
+        "type": "heal",
+        "amount": [280.0, 340.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.9, 1.2],
+        "purity": [0.85, 1.1],
+        "potency": [0.9, 1.2]
+      },
+      "traits": ["healing", "rare", "instant", "potion", "powerful", "large"],
+      "value": [90, 120],
+      "stackable": true,
+      "maxStack": 99,
+      "icon": "placeholder_potion_health_large"
+    },
+    {
+      "id": "mana_potion_small",
+      "name": "Small Mana Potion",
+      "type": "consumable",
+      "consumableType": "potion",
+      "baseRarity": "common",
+      "level": 1,
+      "description": "Restores a small amount of mana.",
+      "effect": {
+        "type": "restore_mp",
+        "amount": [25.0, 40.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.7, 1.0],
+        "purity": [0.6, 0.9],
+        "potency": [0.7, 1.0],
+        "magicConductivity": [0.6, 0.9]
+      },
+      "traits": ["mana", "basic", "common", "instant", "potion", "magical"],
+      "value": [8, 15],
+      "stackable": true,
+      "maxStack": 99,
+      "icon": "placeholder_potion_mana_small"
+    },
+    {
+      "id": "mana_potion_medium",
+      "name": "Medium Mana Potion",
+      "type": "consumable",
+      "consumableType": "potion",
+      "baseRarity": "uncommon",
+      "level": 5,
+      "description": "Restores a moderate amount of mana.",
+      "effect": {
+        "type": "restore_mp",
+        "amount": [70.0, 95.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.8, 1.1],
+        "purity": [0.75, 1.0],
+        "potency": [0.8, 1.1],
+        "magicConductivity": [0.75, 1.0]
+      },
+      "traits": ["mana", "uncommon", "instant", "potion", "magical", "moderate"],
+      "value": [30, 45],
+      "stackable": true,
+      "maxStack": 99,
+      "icon": "placeholder_potion_mana_medium"
+    },
+    {
+      "id": "mana_potion_large",
+      "name": "Large Mana Potion",
+      "type": "consumable",
+      "consumableType": "potion",
+      "baseRarity": "rare",
+      "level": 10,
+      "description": "Restores a large amount of mana.",
+      "effect": {
+        "type": "restore_mp",
+        "amount": [140.0, 170.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.9, 1.2],
+        "purity": [0.85, 1.1],
+        "potency": [0.9, 1.2],
+        "magicConductivity": [0.85, 1.1]
+      },
+      "traits": ["mana", "rare", "instant", "potion", "magical", "powerful", "large"],
+      "value": [90, 120],
+      "stackable": true,
+      "maxStack": 99,
+      "icon": "placeholder_potion_mana_large"
+    },
+    {
+      "id": "strength_elixir",
+      "name": "Strength Elixir",
+      "type": "consumable",
+      "consumableType": "elixir",
+      "baseRarity": "uncommon",
+      "level": 8,
+      "description": "Temporarily increases strength.",
+      "effect": {
+        "type": "buff",
+        "stat": "str",
+        "amount": [8.0, 13.0],
+        "duration": [280, 330]
+      },
+      "statRanges": {
+        "quality": [0.8, 1.1],
+        "purity": [0.75, 1.0],
+        "potency": [0.8, 1.1],
+        "duration": [0.9, 1.1]
+      },
+      "traits": ["buff", "strength", "temporary", "elixir", "uncommon", "power_boost"],
+      "value": [140, 170],
+      "stackable": false,
+      "maxStack": 1,
+      "icon": "placeholder_elixir_strength"
+    },
+    {
+      "id": "defense_elixir",
+      "name": "Defense Elixir",
+      "type": "consumable",
+      "consumableType": "elixir",
+      "baseRarity": "uncommon",
+      "level": 8,
+      "description": "Temporarily increases defense.",
+      "effect": {
+        "type": "buff",
+        "stat": "def",
+        "amount": [6.0, 11.0],
+        "duration": [280, 330]
+      },
+      "statRanges": {
+        "quality": [0.8, 1.1],
+        "purity": [0.75, 1.0],
+        "potency": [0.8, 1.1],
+        "duration": [0.9, 1.1]
+      },
+      "traits": ["buff", "defense", "temporary", "elixir", "uncommon", "protection_boost"],
+      "value": [140, 170],
+      "stackable": false,
+      "maxStack": 1,
+      "icon": "placeholder_elixir_defense"
+    },
+    {
+      "id": "bread",
+      "name": "Bread",
+      "type": "consumable",
+      "consumableType": "food",
+      "baseRarity": "common",
+      "level": 1,
+      "description": "Simple bread that restores a bit of health.",
+      "effect": {
+        "type": "heal",
+        "amount": [20.0, 35.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.6, 0.9],
+        "freshness": [0.5, 1.0],
+        "nutrition": [0.5, 0.8]
+      },
+      "traits": ["food", "basic", "common", "healing", "simple", "cheap"],
+      "value": [1, 4],
+      "stackable": true,
+      "maxStack": 99,
+      "icon": "placeholder_food_bread"
+    },
+    {
+      "id": "hearty_meal",
+      "name": "Hearty Meal",
+      "type": "consumable",
+      "consumableType": "food",
+      "baseRarity": "uncommon",
+      "level": 5,
+      "description": "A filling meal that restores health and mana.",
+      "effect": {
+        "type": "heal_and_mp",
+        "hpAmount": [90.0, 120.0],
+        "mpAmount": [40.0, 65.0],
+        "duration": 0
+      },
+      "statRanges": {
+        "quality": [0.75, 1.0],
+        "freshness": [0.7, 1.0],
+        "nutrition": [0.7, 1.0],
+        "satisfaction": [0.7, 1.0]
+      },
+      "traits": ["food", "uncommon", "healing", "mana", "filling", "nutritious", "satisfying"],
+      "value": [45, 60],
+      "stackable": true,
+      "maxStack": 20,
+      "icon": "placeholder_food_hearty"
+    },
+    {
+      "id": "revive_potion",
+      "name": "Revive Potion",
+      "type": "consumable",
+      "consumableType": "potion",
+      "baseRarity": "epic",
+      "level": 15,
+      "description": "Brings you back to life with health.",
+      "effect": {
+        "type": "revive",
+        "hpPercent": [45.0, 60.0]
+      },
+      "statRanges": {
+        "quality": [1.0, 1.3],
+        "purity": [0.95, 1.2],
+        "potency": [1.0, 1.3],
+        "revivalPower": [0.9, 1.2]
+      },
+      "traits": ["revive", "epic", "rare", "life_saving", "powerful", "potion", "legendary_quality"],
+      "value": [450, 600],
+      "stackable": true,
+      "maxStack": 10,
+      "icon": "placeholder_potion_revive"
+    },
+    {
+      "id": "experience_scroll",
+      "name": "Experience Scroll",
+      "type": "consumable",
+      "consumableType": "scroll",
+      "baseRarity": "rare",
+      "level": 10,
+      "description": "Grants bonus experience for a short time.",
+      "effect": {
+        "type": "buff",
+        "stat": "xp_bonus",
+        "amount": [45.0, 60.0],
+        "duration": [580, 630]
+      },
+      "statRanges": {
+        "quality": [0.9, 1.2],
+        "magicPower": [0.85, 1.1],
+        "potency": [0.9, 1.2],
+        "duration": [0.95, 1.05]
+      },
+      "traits": ["xp_boost", "rare", "temporary", "scroll", "magical", "experience", "valuable"],
+      "value": [280, 350],
+      "stackable": true,
+      "maxStack": 5,
+      "icon": "placeholder_scroll_experience"
+    }
+  ]
+}
